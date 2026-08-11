@@ -7,6 +7,7 @@ const api = axios.create({
         process.env.NEXT_PUBLIC_API_URL ||
         'https://intercivic-rozella-unregrettably.ngrok-free.dev/api',
     headers: {
+        'ngrok-skip-browser-warning': 'true',
         'Content-Type': 'application/json',
         Accept: 'application/json',
     },
