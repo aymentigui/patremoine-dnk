@@ -1,0 +1,149 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import api from "@/lib/axios";
+import { Loader2, ArrowRightLeft, PackagePlus, DoorOpen, ScanLine, Bell, MapPin, Search } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+
+export default function MobileHomePage() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get("/user");
+        setUser(res.data);
+      } catch (error) {
+        console.error("Erreur de chargement de l'utilisateur", error);
+        // إذا كان التوكن ميت، نرجعوه للوغين
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, [router]);
+
+  // دالة باش نبعثوه للسكانار مع نوع العملية (Action)
+  const handleQuickAction = (actionType: string) => {
+    router.push(`/app/scan?action=${actionType}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-5 space-y-6">
+      
+      {/* 🔹 HEADER: ترحيب وإشعارات 🔹 */}
+      <header className="flex justify-between items-center pt-2">
+        <div>
+          <p className="text-sm font-medium text-slate-500">Bonjour,</p>
+          <h1 className="text-2xl font-bold text-slate-900 capitalize">
+            {user?.name?.replace('.', ' ') || "Utilisateur"}
+          </h1>
+          {user?.employee?.emplacement && (
+            <div className="flex items-center gap-1 mt-1 text-xs text-blue-600 font-medium bg-blue-50 w-fit px-2 py-1 rounded-md">
+              <MapPin size={12} />
+              {user.employee.emplacement.nom}
+            </div>
+          )}
+        </div>
+        <button className="relative p-3 bg-white rounded-full shadow-sm border border-slate-100 active:scale-95 transition-transform">
+          <Bell size={20} className="text-slate-600" />
+          <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+        </button>
+      </header>
+
+      {/* 🔹 CALL TO ACTION (SCANNER) 🔹 */}
+      <section>
+        <div 
+          onClick={() => router.push('/app/scan')}
+          className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-6 text-white shadow-lg active:scale-[0.98] transition-transform cursor-pointer"
+        >
+          <div className="relative z-10">
+            <h2 className="text-xl font-bold mb-1">Scanner un article</h2>
+            <p className="text-blue-100 text-sm mb-4 max-w-[80%]">
+              Identifiez rapidement un équipement ou un véhicule.
+            </p>
+            <div className="flex items-center gap-2 bg-white/20 w-fit px-4 py-2 rounded-full backdrop-blur-sm">
+              <ScanLine size={18} />
+              <span className="text-sm font-semibold">Ouvrir la caméra</span>
+            </div>
+          </div>
+          <ScanLine className="absolute -right-6 -bottom-6 w-32 h-32 text-white opacity-10" />
+        </div>
+      </section>
+
+      {/* 🔹 ACTIONS RAPIDES (Shortcuts) 🔹 */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Actions Rapides</h3>
+        
+        <div className="grid grid-cols-2 gap-4">
+          
+          {/* Action 1: Placement Initial */}
+          <Card 
+            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-emerald-50/50"
+            onClick={() => handleQuickAction('initial_placement')}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+                <PackagePlus size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Placement</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">Affectation initiale</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action 2: Transfert Rapide */}
+          <Card 
+            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-orange-50/50"
+            onClick={() => handleQuickAction('quick_transfer')}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
+                <ArrowRightLeft size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Transfert</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">Déplacer un article</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action 3: Statut Salle */}
+          <Card 
+            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-purple-50/50 col-span-2"
+            onClick={() => handleQuickAction('room_status')}
+          >
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shrink-0">
+                <DoorOpen size={24} />
+              </div>
+              <div className="text-left">
+                <h4 className="text-sm font-bold text-slate-800">Statut de la salle</h4>
+                <p className="text-xs text-slate-500 mt-0.5">Vérifier l'inventaire d'un emplacement spécifique.</p>
+              </div>
+              <div className="ml-auto bg-white p-2 rounded-full shadow-sm">
+                <Search size={16} className="text-slate-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+        </div>
+      </section>
+
+    </div>
+  );
+}

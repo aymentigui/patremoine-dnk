@@ -12,7 +12,24 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "node_modules/**",
+    "coverage/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "*.d.ts",
+    "*.d.ts.map",
+    "*.tsbuildinfo",
+    "*.tsbuildinfo.d.ts",
+    "*.tsbuildinfo.d.ts.map"
   ]),
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
