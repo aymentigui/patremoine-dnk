@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Box, Tag, QrCode } from "lucide-react";
+import { Loader2, Box, Tag, QrCode, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx"; // 🔹 زدنا استدعاء مكتبة الإكسيل هنا
 
 interface ArticleFormModalProps {
   isOpen: boolean;
@@ -31,7 +32,7 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [emplacements, setEmplacements] = useState<any[]>([]);
-  const [existingNames, setExistingNames] = useState<string[]>([]); // 🔹 خبينا فيها الأسماء القديمة باش نقترحوهم
+  const [existingNames, setExistingNames] = useState<string[]>([]);
 
   const [formData, setFormData] = useState(initialFormData);
 
@@ -42,14 +43,11 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
   useEffect(() => {
     if (!isOpen) return;
 
-    // نجيبو التصنيفات والمواقع
     api.get("/categories?per_page=500").then(res => setCategories(res.data?.data?.data || res.data?.data || []));
     api.get("/emplacements?per_page=500").then(res => setEmplacements(res.data?.data?.data || res.data?.data || []));
     
-    // 🔹 نجيبو أسماء الكتالوج باش نقترحوهم في الـ Input
     api.get("/articles?per_page=500").then(res => {
       const articles = res.data?.data || [];
-      // نخرجو غير الأسماء وبدون تكرار (Unique)
       const names = Array.from(new Set(articles.map((a: any) => a.nom)));
       setExistingNames(names as string[]);
     });
@@ -62,12 +60,51 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
     onClose();
   };
 
-  // 🔹 الدالة اللي تفلتر وتحسب شحال كاين من كود QR
   const getParsedQRCodes = () => {
     return manualQRCodesText
-      .split(/[\n,]+/) // نقسمو بالسطر الجديد أو الفاصلة
-      .map(code => code.trim()) // نحو الفراغات
-      .filter(code => code !== ""); // نحو الأسطر الفارغة
+      .split(/[\n,]+/) 
+      .map(code => code.trim()) 
+      .filter(code => code !== ""); 
+  };
+
+  // 🔥 دالة قراءة ملف الإكسيل واستخراج الأكواد 🔥
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0]; // نقراو الورقة الأولى
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // تحويل محتوى الورقة إلى مصفوفة (Array of arrays)
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // نلمو ڨاع الخلايا اللي ماشي فارغة
+        const extractedCodes = jsonData
+          .flat() // نرجعوها مصفوفة وحدة
+          .map(val => String(val).trim()) // نحو الفراغات ونردوها String
+          .filter(val => val !== ""); // نحو اللي فارغين
+
+        if (extractedCodes.length > 0) {
+          const newText = extractedCodes.join("\n");
+          // إذا كان كاين أكواد من قبل، نزيدو عليهم، وإذا لا نحطو الجدد
+          setManualQRCodesText(prev => prev ? prev + "\n" + newText : newText);
+          toast.success(`${extractedCodes.length} codes récupérés avec succès !`);
+        } else {
+          toast.error("Aucun code trouvé dans le fichier.");
+        }
+      } catch (error) {
+        toast.error("Erreur lors de la lecture du fichier Excel.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    // ريزيتي الحقل باش يقدر المستعمل يطلع نفس الفيشي مرة أخرى يلا حب
+    e.target.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,7 +115,6 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
 
     const parsedQRCodes = getParsedQRCodes();
 
-    // 🔥 التحقق من عدد أكواد الـ QR إذا كان الإدخال يدويا
     if (qrGenerationMode === "manual") {
       if (parsedQRCodes.length !== formData.quantite_globale) {
         return toast.error(`Erreur: Vous avez saisi ${parsedQRCodes.length} codes QR, mais la quantité globale est de ${formData.quantite_globale}. Les deux doivent correspondre.`);
@@ -88,13 +124,11 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
     try {
       setLoading(true);
       
-      // تحضير البيانات للإرسال
       const payload: any = {
         ...formData,
         date_facture: formData.date_facture || null,
       };
 
-      // إذا خير المانيال، نبعثو الأكواد في الـ payload (الباك اند راح يقرأهم كيما سقمناه مقبل)
       if (qrGenerationMode === "manual") {
         payload.qr_codes = parsedQRCodes;
       }
@@ -149,17 +183,16 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
               </Select>
             </div>
 
-            {/* 2. Nom avec Datalist (Select or Type) */}
+            {/* 2. Nom avec Datalist */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-slate-700">Désignation (Nom) <span className="text-red-500">*</span></label>
               <Input 
-                list="existing-articles" // 🔹 نربطوه مع الـ datalist لتحت
+                list="existing-articles" 
                 placeholder="Ex: Micro Ordinateur HP..." 
                 value={formData.nom} 
                 onChange={(e) => setFormData({ ...formData, nom: e.target.value })} 
                 className="bg-white"
               />
-              {/* 🔹 هادي هي اللي تخرجلو الاقتراحات كيبدا يكتب */}
               <datalist id="existing-articles">
                 {existingNames.map((name, idx) => (
                   <option key={idx} value={name} />
@@ -167,7 +200,7 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
               </datalist>
             </div>
 
-            {/* 3. Marque (Nouveau) */}
+            {/* 3. Marque */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-slate-700">Marque <span className="text-slate-400 font-normal">(Optionnel)</span></label>
               <Input 
@@ -177,7 +210,7 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
               />
             </div>
 
-            {/* 4. Modèle (Nouveau) */}
+            {/* 4. Modèle */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-slate-700">Modèle <span className="text-slate-400 font-normal">(Optionnel)</span></label>
               <Input 
@@ -271,15 +304,31 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
                 </div>
               </div>
 
-              {/* Textarea تظهر فقط في حالة الـ Manuel */}
+              {/* Textarea و زر الرفع يظهرو فقط في حالة الـ Manuel */}
               {qrGenerationMode === "manual" && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-sm font-semibold text-slate-700 flex justify-between items-center">
-                    <span>Codes QR <span className="text-xs text-slate-400 font-normal">(1 par ligne ou séparés par virgule)</span> <span className="text-red-500">*</span></span>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${parsedLength === formData.quantite_globale ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                      {parsedLength} / {formData.quantite_globale} codes
-                    </span>
-                  </label>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <label className="text-sm font-semibold text-slate-700">
+                      Codes QR <span className="text-xs text-slate-400 font-normal">(1 par ligne ou séparés par virgule)</span> <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${parsedLength === formData.quantite_globale ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                        {parsedLength} / {formData.quantite_globale}
+                      </span>
+                      
+                      {/* 🔥 زر رفع الإكسيل لاستخراج الأكواد 🔥 */}
+                      <label className="cursor-pointer bg-white hover:bg-slate-50 text-indigo-600 px-2 py-1 rounded text-xs font-bold border border-indigo-200 flex items-center gap-1 transition-colors shadow-sm">
+                        <FileSpreadsheet className="w-3 h-3" /> Importer Excel
+                        <input 
+                          type="file" 
+                          accept=".xlsx, .xls, .csv" 
+                          className="hidden" 
+                          onChange={handleFileUpload} 
+                        />
+                      </label>
+                    </div>
+                  </div>
+
                   <textarea
                     value={manualQRCodesText}
                     onChange={(e) => setManualQRCodesText(e.target.value)}
