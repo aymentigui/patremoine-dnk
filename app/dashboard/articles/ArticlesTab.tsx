@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // Icons
-import { Loader2, Plus, Search, Eye, Download, Upload, FileSpreadsheet, Box, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { Loader2, Plus, Search, Eye, Download, Upload, FileSpreadsheet, Box, ChevronLeft, ChevronRight, FileDown, QrCode } from "lucide-react";
 import { ArticleFormModal } from "@/components/articles/ArticleFormModal";
 
 // ==========================================
@@ -59,6 +59,9 @@ export default function ArticlesTab() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
+  
+  // 🔹 State جديد لتحديد نوع الاستيراد (كتالوج أو قطع تفصيلية)
+  const [importType, setImportType] = useState<'catalog' | 'items'>('catalog');
 
   // 1. Fetch Categories for Filter
   useEffect(() => {
@@ -134,23 +137,27 @@ export default function ArticlesTab() {
     }
   };
 
-  // Download Template
+  // 🔹 Download Template Logic (Dynamique) 🔹
   const handleDownloadTemplate = async () => {
     try {
-      const res = await api.get("/articles/template", { responseType: 'blob' });
+      // نختاروا مسار الـ Template واسم الملف على حساب الـ importType
+      const endpoint = importType === 'catalog' ? '/articles/template' : '/article-items/template';
+      const filename = importType === 'catalog' ? 'modele_import_articles.xlsx' : 'modele_import_pieces_qr.xlsx';
+
+      const res = await api.get(endpoint, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'modele_import_articles.xlsx');
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       toast.success("Modèle téléchargé !");
     } catch (error) {
-      toast.error("Erreur lors du téléchargement.");
+      toast.error("Erreur lors du téléchargement du modèle.");
     }
   };
 
-  // Import Submit
+  // 🔹 Import Submit Logic (Dynamique) 🔹
   const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importFile) return toast.error("Veuillez sélectionner un fichier.");
@@ -159,8 +166,12 @@ export default function ArticlesTab() {
 
     try {
       setImporting(true);
-      await api.post("/articles/import", formData, { headers: { "Content-Type": "multipart/form-data" }});
-      toast.success("Importation et génération des QR Codes réussies !");
+      // نختاروا مسار الإرسال على حساب الـ importType
+      const endpoint = importType === 'catalog' ? '/articles/import' : '/article-items/import';
+      
+      const res = await api.post(endpoint, formData, { headers: { "Content-Type": "multipart/form-data" }});
+      
+      toast.success(res.data?.message || "Importation réussie !");
       setIsImportModalOpen(false);
       setImportFile(null);
       fetchArticles();
@@ -195,13 +206,11 @@ export default function ArticlesTab() {
           {hasPermission(PERMISSIONS.MANAGE_ARTICLES) && (
             <>
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button variant="outline" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
-                      <Download className="w-4 h-4 mr-2" /> Exporter {selectedIds.length > 0 && `(${selectedIds.length})`}
-                    </Button>
-                  }
-                />
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
+                    <Download className="w-4 h-4 mr-2" /> Exporter {selectedIds.length > 0 && `(${selectedIds.length})`}
+                  </Button>
+                </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem onClick={() => handleExport('normal')} className="cursor-pointer">
                     <FileDown className="w-4 h-4 mr-2 text-slate-500" /> Registre Global
@@ -212,9 +221,22 @@ export default function ArticlesTab() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
-                <Upload className="w-4 h-4 mr-2 text-indigo-600" /> Importer
-              </Button>
+              {/* 🔹 زر الاستيراد أصبح Dropdown ليسمح بخيارين 🔹 */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
+                    <Upload className="w-4 h-4 mr-2 text-indigo-600" /> Importer
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => { setImportType('catalog'); setIsImportModalOpen(true); }} className="cursor-pointer">
+                    <Box className="w-4 h-4 mr-2 text-slate-500" /> Catalogue (QR Auto)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setImportType('items'); setIsImportModalOpen(true); }} className="cursor-pointer">
+                    <QrCode className="w-4 h-4 mr-2 text-indigo-500" /> Pièces Détaillées (QR Existants)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <Button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm">
                 <Plus className="w-4 h-4 mr-2" /> Nouvelle Entrée
@@ -320,8 +342,15 @@ export default function ArticlesTab() {
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><Upload className="w-5 h-5" /></div>
                     <div>
-                      <DialogTitle className="text-xl font-semibold text-slate-800">Importation Massive</DialogTitle>
-                      <DialogDescription className="mt-1 text-sm text-slate-500">Importer depuis un fichier Excel (.xlsx)</DialogDescription>
+                      {/* 🔹 العنوان والوصف يتغيرو على حساب نوع الاستيراد */}
+                      <DialogTitle className="text-xl font-semibold text-slate-800">
+                        {importType === 'catalog' ? 'Importation du Catalogue' : 'Importation des Pièces (QR)'}
+                      </DialogTitle>
+                      <DialogDescription className="mt-1 text-sm text-slate-500">
+                        {importType === 'catalog' 
+                          ? 'Importer les articles pour générer des QR codes.' 
+                          : 'Importer les détails des pièces avec leurs propres QR codes.'}
+                      </DialogDescription>
                     </div>
                   </div>
                 </div>
@@ -329,7 +358,9 @@ export default function ArticlesTab() {
 
               <form onSubmit={handleImportSubmit} className="px-6 py-6 space-y-4">
                 <div className="flex justify-end">
-                  <Button type="button" variant="link" onClick={handleDownloadTemplate} className="text-indigo-600 h-auto p-0"><FileSpreadsheet className="w-4 h-4 mr-1"/> Télécharger le modèle officiel</Button>
+                  <Button type="button" variant="link" onClick={handleDownloadTemplate} className="text-indigo-600 h-auto p-0">
+                    <FileSpreadsheet className="w-4 h-4 mr-1"/> Télécharger le modèle officiel
+                  </Button>
                 </div>
                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-indigo-500 transition-colors bg-slate-50/50">
                   <input 
@@ -340,7 +371,7 @@ export default function ArticlesTab() {
                 <DialogFooter className="px-0 pt-4 border-t sm:justify-between items-center bg-transparent">
                   <Button type="button" variant="outline" onClick={() => setIsImportModalOpen(false)} disabled={importing}>Annuler</Button>
                   <Button type="submit" disabled={importing || !importFile} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[120px] rounded-lg">
-                    {importing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Lancer l'importation"}
+                    {importing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Importation...</> : "Lancer l'importation"}
                   </Button>
                 </DialogFooter>
               </form>
