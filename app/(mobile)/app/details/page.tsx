@@ -38,7 +38,6 @@ function DetailsContent() {
   const [emplacements, setEmplacements] = useState<any[]>([]);
 
   useEffect(() => {
-    alert(qrCode)
     if (!qrCode) {
       toast.error("Code QR manquant.");
       router.push("/app/home");
@@ -49,9 +48,9 @@ function DetailsContent() {
       try {
         // 🔥 استعمال الـ API الجديد الخاص بالـ QR 🔥
         const res = await api.get(`/article-items/qr/${qrCode}`);
+        alert(JSON.stringify(res))
         setItem(res.data.data);
       } catch (error: any) {
-        alert(1)
         toast.error(error.response?.data?.message || "Erreur de connexion serveur.");
         router.push("/app/home");
       } finally {
