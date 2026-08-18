@@ -105,6 +105,7 @@ export default function ArticleDetailsPage() {
     if (!hasPermission(PERMISSIONS.VIEW)) return; // 🔹 حماية
     try {
       const res = await api.get(`/articles/${articleId}`);
+      
       setArticle(res.data?.data);
       setItems(res.data?.data?.items || []);
     } catch (error) {
@@ -127,7 +128,6 @@ export default function ArticleDetailsPage() {
           api.get("/users?per_page=500").catch(() => null),
           api.get("/organigramme/tree").catch(() => null)
         ]);
-
         if (isMounted) {
           if (articleRes.data?.data) {
             setArticle(articleRes.data.data);

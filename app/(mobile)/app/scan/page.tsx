@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import { ArrowLeft, Keyboard, Loader2, QrCode, X } from "lucide-react";
@@ -19,55 +19,14 @@ function ScannerContent() {
   const [manualCode, setManualCode] = useState("");
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
-  // إعداد الكاميرا
-  useEffect(() => {
-    if (manualMode) {
-      stopScanner();
-      return;
-    }
-
-    const startScanner = async () => {
-      try {
-        scannerRef.current = new Html5Qrcode("qr-reader");
-        await scannerRef.current.start(
-          { facingMode: "environment" }, // الكاميرا الخلفية دائما
-          {
-            fps: 10,    // سرعة الفحص (10 إطارات في الثانية)
-            qrbox: { width: 250, height: 250 }, // المربع نتاع الفوكس
-            aspectRatio: 1.0,
-          },
-          (decodedText) => {
-            // كي ينجح في قراءة الكود
-            // @ts-ignore
-            handleScanSuccess(decodedText);
-          },
-          (errorMessage) => {
-            // نتجاهلو الأخطاء العادية نتاع الفوكس
-          }
-        );
-      } catch (err) {
-        console.error("Erreur de caméra:", err);
-        toast.error("Impossible d'accéder à la caméra. Utilisez la saisie manuelle.");
-        setManualMode(true);
-      }
-    };
-
-    startScanner();
-
-    // Cleanup: نحبسو الكاميرا كي نخرجو من الصفحة
-    return () => {
-      stopScanner();
-    };
-  }, [manualMode]);
-
-  const stopScanner = () => {
+  const stopScanner = useCallback(() => {
     if (scannerRef.current && scannerRef.current.isScanning) {
       scannerRef.current.stop().catch(console.error);
     }
-  };
+  }, []);
 
   // دالة التعامل مع الكود بعد قراءته
-  const handleScanSuccess = (code: string) => {
+  const handleScanSuccess = useCallback((code: string) => {
     stopScanner();
     setIsScanning(false);
     
@@ -92,7 +51,47 @@ function ScannerContent() {
       // إذا ماكانش أكشن (سكانار عام)، نبعثوه لصفحة تفاصيل العتاد/السيارة
       router.push(`/app/details?qr=${code}`);
     }
-  };
+  }, [action, router, searchParams, stopScanner]);
+
+  // إعداد الكاميرا
+  useEffect(() => {
+    if (manualMode) {
+      stopScanner();
+      return;
+    }
+
+    const startScanner = async () => {
+      try {
+        scannerRef.current = new Html5Qrcode("qr-reader");
+        await scannerRef.current.start(
+          { facingMode: "environment" }, // الكاميرا الخلفية دائما
+          {
+            fps: 10,    // سرعة الفحص (10 إطارات في الثانية)
+            qrbox: { width: 250, height: 250 }, // المربع نتاع الفوكس
+            aspectRatio: 1.0,
+          },
+          (decodedText) => {
+            // كي ينجح في قراءة الكود
+            handleScanSuccess(decodedText);
+          },
+          (errorMessage) => {
+            // نتجاهلو الأخطاء العادية نتاع الفوكس
+          }
+        );
+      } catch (err) {
+        console.error("Erreur de caméra:", err);
+        toast.error("Impossible d'accéder à la caméra. Utilisez la saisie manuelle.");
+        setManualMode(true);
+      }
+    };
+
+    startScanner();
+
+    // Cleanup: نحبسو الكاميرا كي نخرجو من الصفحة
+    return () => {
+      stopScanner();
+    };
+  }, [manualMode, stopScanner, handleScanSuccess]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();

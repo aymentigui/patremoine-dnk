@@ -31,8 +31,8 @@ const formSchema = z.object({
   fonction: z.string().optional(),
   telephone: z.string().optional(),
   
-  direction_id: z.string().min(1, "Requis"),
-  departement_id: z.string().min(1, "Requis"),
+  direction_id: z.string().optional(),
+  departement_id: z.string().optional(),
   parc_id_form: z.string().min(1, "Requis"), 
   emplacement_id: z.string().min(1, "L'emplacement final est requis"),
   

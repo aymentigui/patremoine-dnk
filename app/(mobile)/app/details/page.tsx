@@ -36,6 +36,7 @@ function DetailsContent() {
   const [emplacements, setEmplacements] = useState<any[]>([]);
 
   useEffect(() => {
+    alert(1)
     if (!qrCode) {
       toast.error("Code QR manquant.");
       router.push("/app/home");
