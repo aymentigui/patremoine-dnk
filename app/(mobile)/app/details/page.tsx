@@ -3,6 +3,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/axios";
+import { Can } from "@/components/auth/Can"; // 👈 استيراد كومبوزنت الصلاحيات
+
 import { 
   ArrowLeft, Package, MapPin, AlertTriangle, Info, Camera, 
   ArrowRightLeft, Activity, ImagePlus, Loader2, CheckCircle2 
@@ -44,19 +46,12 @@ function DetailsContent() {
 
     const fetchItemDetails = async () => {
       try {
-        // نبحثو على العتاد بالـ QR Code (باستعمال مسار البحث أو الفلترة)
-        const res = await api.get(`/article-items?search=${qrCode}`);
-        const foundItems = res.data.data?.data || res.data.data;
-        
-        if (foundItems && foundItems.length > 0) {
-          alert(qrCode)
-          setItem(foundItems[0]); // نديو أول نتيجة
-        } else {
-          toast.error("Aucun article trouvé pour ce code.");
-          router.push("/app/home");
-        }
-      } catch (error) {
-        toast.error("Erreur de connexion serveur.");
+        // 🔥 استعمال الـ API الجديد الخاص بالـ QR 🔥
+        const res = await api.get(`/article-items/qr/${qrCode}`);
+        setItem(res.data.data);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Erreur de connexion serveur.");
+        router.push("/app/home");
       } finally {
         setLoading(false);
       }
@@ -65,7 +60,6 @@ function DetailsContent() {
     fetchItemDetails();
   }, [qrCode, router]);
 
-  // جلب الأماكن كي نفتحو مودال التحويل
   useEffect(() => {
     if (activeModal === "transfer" && emplacements.length === 0) {
       api.get("/emplacements?per_page=500").then(res => {
@@ -74,7 +68,6 @@ function DetailsContent() {
     }
   }, [activeModal, emplacements.length]);
 
-  // 1. تغيير الحالة (En panne, etc.)
   const handleStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusForm.status) return toast.error("Sélectionnez un statut.");
@@ -82,13 +75,12 @@ function DetailsContent() {
       setActionLoading(true);
       await api.post(`/article-items/${item.id}/change-status`, statusForm);
       toast.success("Statut mis à jour !");
-      setItem({ ...item, status: statusForm.status }); // Update local UI
+      setItem({ ...item, status: statusForm.status });
       setActiveModal(null);
     } catch (err) { toast.error("Erreur de mise à jour."); }
     finally { setActionLoading(false); }
   };
 
-  // 2. التحويل السريع للموبايل
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!transferForm.emplacement_id) return toast.error("Sélectionnez un emplacement.");
@@ -104,7 +96,6 @@ function DetailsContent() {
     finally { setActionLoading(false); }
   };
 
-  // 3. التقاط ورفع صورة (إثراء)
   const handleEnrichSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!photo) return toast.error("Veuillez prendre ou choisir une photo.");
@@ -147,8 +138,13 @@ function DetailsContent() {
         
         {/* 🔹 CARD: INFO PRINCIPALES 🔹 */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col items-center text-center relative overflow-hidden">
-          <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
-            <Package size={36} strokeWidth={1.5} />
+          <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 overflow-hidden">
+            {item.photo_path ? (
+              // إذا كان عندو صورة، نبينوها
+              <img src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${item.photo_path}`} alt="Article" className="w-full h-full object-cover" />
+            ) : (
+              <Package size={36} strokeWidth={1.5} />
+            )}
           </div>
           <Badge className="absolute top-4 right-4 bg-slate-100 text-slate-600 font-mono border-0">
             {item.qr_code_reference}
@@ -190,37 +186,40 @@ function DetailsContent() {
           </div>
         </div>
 
-        {/* 🔹 ACTIONS GRID 🔹 */}
+        {/* 🔹 ACTIONS GRID (Protected by Permissions) 🔹 */}
         <div>
           <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">Actions Rapides</h3>
           <div className="grid grid-cols-2 gap-3">
             
-            {/* Action: Statut */}
-            <button 
-              onClick={() => setActiveModal("status")}
-              className="bg-orange-50 rounded-2xl p-4 flex flex-col items-center justify-center text-orange-700 active:scale-95 transition-transform border border-orange-100"
-            >
-              <Activity size={24} className="mb-2" />
-              <span className="text-[11px] font-bold text-center">Changer Statut</span>
-            </button>
+            <Can permission="modifier_statut_article_items">
+              <button 
+                onClick={() => setActiveModal("status")}
+                className="bg-orange-50 rounded-2xl p-4 flex flex-col items-center justify-center text-orange-700 active:scale-95 transition-transform border border-orange-100"
+              >
+                <Activity size={24} className="mb-2" />
+                <span className="text-[11px] font-bold text-center">Changer Statut</span>
+              </button>
+            </Can>
 
-            {/* Action: Transfert */}
-            <button 
-              onClick={() => setActiveModal("transfer")}
-              className="bg-blue-50 rounded-2xl p-4 flex flex-col items-center justify-center text-blue-700 active:scale-95 transition-transform border border-blue-100"
-            >
-              <ArrowRightLeft size={24} className="mb-2" />
-              <span className="text-[11px] font-bold text-center">Déplacer</span>
-            </button>
+            <Can permission="transfert_rapide_mobile">
+              <button 
+                onClick={() => setActiveModal("transfer")}
+                className="bg-blue-50 rounded-2xl p-4 flex flex-col items-center justify-center text-blue-700 active:scale-95 transition-transform border border-blue-100"
+              >
+                <ArrowRightLeft size={24} className="mb-2" />
+                <span className="text-[11px] font-bold text-center">Déplacer</span>
+              </button>
+            </Can>
 
-            {/* Action: Enrichir (Caméra) */}
-            <button 
-              onClick={() => setActiveModal("enrich")}
-              className="col-span-2 bg-emerald-50 rounded-2xl p-4 flex flex-row items-center justify-center gap-3 text-emerald-700 active:scale-[0.98] transition-transform border border-emerald-100"
-            >
-              <div className="bg-emerald-100 p-2 rounded-full"><Camera size={20} /></div>
-              <span className="text-sm font-bold">Prendre une photo (Enrichir)</span>
-            </button>
+            <Can permission="enrichir_article_items">
+              <button 
+                onClick={() => setActiveModal("enrich")}
+                className="col-span-2 bg-emerald-50 rounded-2xl p-4 flex flex-row items-center justify-center gap-3 text-emerald-700 active:scale-[0.98] transition-transform border border-emerald-100"
+              >
+                <div className="bg-emerald-100 p-2 rounded-full"><Camera size={20} /></div>
+                <span className="text-sm font-bold">Prendre une photo (Enrichir)</span>
+              </button>
+            </Can>
             
           </div>
         </div>
@@ -300,19 +299,18 @@ function DetailsContent() {
             <h3 className="text-xl font-bold text-slate-900">Ajouter une photo</h3>
             <p className="text-sm text-slate-500 pb-4">Prenez une photo de l'équipement pour enrichir la base de données.</p>
             <form onSubmit={handleEnrichSubmit} className="space-y-4">
-              <div className="relative border-2 border-dashed border-emerald-200 rounded-2xl bg-emerald-50/50 p-6 flex flex-col items-center justify-center">
+              <div className="relative border-2 border-dashed border-emerald-200 rounded-2xl bg-emerald-50/50 p-6 flex flex-col items-center justify-center overflow-hidden">
                 {photo ? (
-                  <p className="text-emerald-700 font-bold text-sm">Image sélectionnée : {photo.name}</p>
+                  <p className="text-emerald-700 font-bold text-sm z-10">Image sélectionnée : {photo.name}</p>
                 ) : (
-                  <p className="text-slate-500 text-sm">Touchez pour ouvrir la caméra</p>
+                  <p className="text-slate-500 text-sm z-10">Touchez pour ouvrir la caméra</p>
                 )}
-                {/* Input file caché qui ouvre la caméra sur mobile (`capture="environment"`) */}
                 <input 
                   type="file" 
                   accept="image/*" 
                   capture="environment" 
                   onChange={(e) => setPhoto(e.target.files?.[0] || null)}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
                 />
               </div>
               <Button type="submit" disabled={actionLoading || !photo} className="w-full h-12 rounded-xl text-base bg-emerald-600 hover:bg-emerald-700">
