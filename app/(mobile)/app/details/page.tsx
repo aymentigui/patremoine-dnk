@@ -36,7 +36,6 @@ function DetailsContent() {
   const [emplacements, setEmplacements] = useState<any[]>([]);
 
   useEffect(() => {
-    alert(qrCode)
     if (!qrCode) {
       toast.error("Code QR manquant.");
       router.push("/app/home");
@@ -50,6 +49,7 @@ function DetailsContent() {
         const foundItems = res.data.data?.data || res.data.data;
         
         if (foundItems && foundItems.length > 0) {
+          alert(qrCode)
           setItem(foundItems[0]); // نديو أول نتيجة
         } else {
           toast.error("Aucun article trouvé pour ce code.");
