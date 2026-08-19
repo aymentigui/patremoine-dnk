@@ -92,8 +92,7 @@ function QuickTransferContent() {
       setSubmitLoading(true);
       await api.post("/mobile/quick-transfer", {
         qr_code: qrCode,
-        to_emplacement_id: emplacementId,
-        motif: motif
+        current_emplacement_id: emplacementId,
       });
       
       toast.success("Transfert effectué avec succès !");
