@@ -20,6 +20,7 @@ function TransferRequestContent() {
   const qrCode = searchParams.get("qr");
 
   // 🔹 States 🔹
+  const [user, setUser] = useState<any>(null);
   const [item, setItem] = useState<any>(null);
   const [parcs, setParcs] = useState<any[]>([]);
   const [emplacements, setEmplacements] = useState<any[]>([]);
@@ -34,7 +35,7 @@ function TransferRequestContent() {
   const [openParc, setOpenParc] = useState(false);
   const [openEmp, setOpenEmp] = useState(false);
 
-  // 1. Fetch Item Data & Locations
+  // 1. Fetch Data (User + Item + Locations)
   useEffect(() => {
     if (!qrCode) {
       toast.error("Code QR manquant.");
@@ -44,12 +45,14 @@ function TransferRequestContent() {
 
     const fetchData = async () => {
       try {
-        const [itemRes, parcRes, empRes] = await Promise.all([
+        const [userRes, itemRes, parcRes, empRes] = await Promise.all([
+          api.get("/user"), // نجبدو الخدام باش نعرفو البارك نتاعو
           api.get(`/article-items/qr/${qrCode}`),
           api.get("/parcs?per_page=500"),
           api.get("/emplacements?per_page=500")
         ]);
 
+        setUser(userRes.data);
         setItem(itemRes.data.data);
         setParcs(parcRes.data.data?.data || parcRes.data.data || []);
         setEmplacements(empRes.data.data?.data || empRes.data.data || []);
@@ -75,13 +78,15 @@ function TransferRequestContent() {
     setEmplacementId(""); 
   };
 
-  // 🔥 متغيرات اللوجيك والتحقق (Validation States) 🔥
-  const currentParcId = item?.emplacement?.parc_id?.toString();
+  // 🔥 اللوجيك الحقيقي نتاع الميدان (Validation States) 🔥
+  const userParcId = user?.employee?.emplacement?.parc_id?.toString();
+  const itemParcId = item?.emplacement?.parc_id?.toString();
   const currentEmpId = item?.emplacement_id?.toString();
   
-  // هل خيّر بارك خاطي البارك نتاع البياسة؟
-  const isDifferentParc = parcId && currentParcId && parcId !== currentParcId;
-  // هل خيّر نفس البيرو اللي راهي فيه البياسة؟
+  // هل البياسة تنتمي لبارك خاطي البارك نتاع الخدام؟
+  const isForeignItem = userParcId && itemParcId && userParcId !== itemParcId;
+  
+  // هل خير يبعثها لنفس البيرو اللي راهي فيه دكا؟
   const isSameEmplacement = emplacementId && currentEmpId && emplacementId === currentEmpId;
 
   // 2. إرسال طلب التحويل (Phase 1)
@@ -89,8 +94,8 @@ function TransferRequestContent() {
     e.preventDefault();
     if (!emplacementId) return toast.error("Veuillez sélectionner le nouvel emplacement.");
     
-    if (isDifferentParc) {
-      return toast.error("Transfert impossible vers un autre parc.");
+    if (isForeignItem) {
+      return toast.error("Vous ne pouvez pas transférer un article d'un autre parc !");
     }
 
     if (isSameEmplacement) {
@@ -117,7 +122,7 @@ function TransferRequestContent() {
     return <div className="flex h-full items-center justify-center bg-slate-50"><Loader2 className="w-10 h-10 animate-spin text-blue-600" /></div>;
   }
 
-  if (!item) return null;
+  if (!item || !user) return null;
 
   return (
     <div className="flex flex-col h-full bg-slate-50 relative">
@@ -134,13 +139,24 @@ function TransferRequestContent() {
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
         
-        {/* 🔹 INFO MESSAGE 🔹 */}
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex gap-3 text-blue-800">
-          <Info className="shrink-0 mt-0.5" size={20} />
-          <p className="text-xs leading-relaxed font-medium">
-            Vous initiez une <strong>demande de transfert</strong>. L'article sera mis en attente jusqu'à l'approbation de l'administration, puis devra être réceptionné.
-          </p>
-        </div>
+        {/* 🔥 ALERTS VISUELLES DU LOGIC METIER 🔥 */}
+        {isForeignItem ? (
+          <div className="bg-red-50 border border-red-200 p-4 rounded-2xl flex gap-3 text-red-800 animate-in fade-in zoom-in">
+            <AlertTriangle className="shrink-0 mt-0.5" size={20} />
+            <div className="text-xs leading-relaxed font-medium space-y-1">
+              <p>Impossible d'initier le transfert.</p>
+              <p>Cet article appartient au parc : <strong className="text-red-900">{item.emplacement?.parc?.nom}</strong>.</p>
+              <p>Vous êtes rattaché au parc : <strong className="text-red-900">{user.employee?.emplacement?.parc?.nom}</strong>.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex gap-3 text-blue-800 animate-in fade-in zoom-in">
+            <Info className="shrink-0 mt-0.5" size={20} />
+            <p className="text-xs leading-relaxed font-medium">
+              Cet article appartient bien à votre parc (<strong>{item.emplacement?.parc?.nom}</strong>). Vous pouvez demander son transfert vers n'importe quel autre site.
+            </p>
+          </div>
+        )}
 
         {/* 🔹 ARTICLE INFO 🔹 */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center gap-4 relative overflow-hidden">
@@ -177,7 +193,8 @@ function TransferRequestContent() {
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" role="combobox" aria-expanded={openParc} 
-                  className={cn("w-full h-14 rounded-2xl justify-between bg-slate-50 text-base font-normal", isDifferentParc ? "border-red-300 ring-1 ring-red-100" : "border-slate-200")}
+                  disabled={isForeignItem} // نديزاكتيفيو البوطون إذا البياسة خاطياتو
+                  className="w-full h-14 rounded-2xl justify-between bg-slate-50 border-slate-200 text-base font-normal disabled:opacity-50"
                 >
                   {parcId ? (
                     <span className="flex items-center gap-2 text-slate-900"><Building2 size={18} className="text-slate-400"/> {parcs.find(p => p.id.toString() === parcId)?.nom}</span>
@@ -214,8 +231,8 @@ function TransferRequestContent() {
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" role="combobox" aria-expanded={openEmp} 
-                  disabled={!parcId || isDifferentParc} 
-                  className={cn("w-full h-14 rounded-2xl justify-between bg-slate-50 text-base font-normal", isSameEmplacement ? "border-orange-300 ring-1 ring-orange-100" : "border-slate-200")}
+                  disabled={!parcId || isForeignItem} 
+                  className={cn("w-full h-14 rounded-2xl justify-between bg-slate-50 text-base font-normal disabled:opacity-50", isSameEmplacement ? "border-orange-300 ring-1 ring-orange-100" : "border-slate-200")}
                 >
                   {emplacementId ? (
                     <span className="flex items-center gap-2 text-slate-900"><MapPin size={18} className="text-blue-500"/> {availableEmplacements.find(e => e.id.toString() === emplacementId)?.nom}</span>
@@ -245,16 +262,7 @@ function TransferRequestContent() {
             </Popover>
           </div>
 
-          {/* 🔥 ALERTS VISUELLES 🔥 */}
-          {isDifferentParc && (
-            <div className="bg-red-50 p-3 rounded-xl border border-red-200 flex gap-2 text-red-700 animate-in fade-in zoom-in duration-300">
-              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-              <p className="text-xs font-semibold leading-relaxed">
-                Impossible : Vous ne pouvez pas transférer un équipement vers un autre parc. Veuillez sélectionner le parc actuel.
-              </p>
-            </div>
-          )}
-
+          {/* إذا خير نفس البيرو اللي راه فيه العتاد */}
           {isSameEmplacement && (
             <div className="bg-orange-50 p-3 rounded-xl border border-orange-200 flex gap-2 text-orange-700 animate-in fade-in zoom-in duration-300">
               <AlertTriangle size={18} className="shrink-0 mt-0.5" />
@@ -264,19 +272,10 @@ function TransferRequestContent() {
             </div>
           )}
 
-          {!isDifferentParc && !isSameEmplacement && parcId && emplacementId && (
-            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 flex gap-2 text-emerald-700 animate-in fade-in zoom-in duration-300">
-              <Check size={18} className="shrink-0 mt-0.5" />
-              <p className="text-xs font-semibold leading-relaxed">
-                Transfert autorisé au sein du même parc.
-              </p>
-            </div>
-          )}
-
           <div className="pt-4">
             <Button 
               type="submit" 
-              disabled={submitLoading || !emplacementId || isDifferentParc || isSameEmplacement} 
+              disabled={submitLoading || !emplacementId || isForeignItem || isSameEmplacement} 
               className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 disabled:opacity-50 disabled:shadow-none"
             >
               {submitLoading ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2 w-5 h-5"/>}
