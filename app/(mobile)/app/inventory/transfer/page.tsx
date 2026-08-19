@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/axios";
 import { 
   ArrowLeft, Send, Package, MapPin, 
-  Loader2, Building2, Check, ChevronsUpDown, Info
+  Loader2, Building2, Check, ChevronsUpDown, Info, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,19 +75,30 @@ function TransferRequestContent() {
     setEmplacementId(""); 
   };
 
+  // 🔥 متغيرات اللوجيك والتحقق (Validation States) 🔥
+  const currentParcId = item?.emplacement?.parc_id?.toString();
+  const currentEmpId = item?.emplacement_id?.toString();
+  
+  // هل خيّر بارك خاطي البارك نتاع البياسة؟
+  const isDifferentParc = parcId && currentParcId && parcId !== currentParcId;
+  // هل خيّر نفس البيرو اللي راهي فيه البياسة؟
+  const isSameEmplacement = emplacementId && currentEmpId && emplacementId === currentEmpId;
+
   // 2. إرسال طلب التحويل (Phase 1)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emplacementId) return toast.error("Veuillez sélectionner le nouvel emplacement.");
     
-    // تأكد ما يبعثوش لنفس البلاصة
-    if (item.emplacement_id?.toString() === emplacementId) {
+    if (isDifferentParc) {
+      return toast.error("Transfert impossible vers un autre parc.");
+    }
+
+    if (isSameEmplacement) {
       return toast.error("L'article est déjà affecté à cet emplacement !");
     }
 
     try {
       setSubmitLoading(true);
-      // 🔥 استعمال الـ Payload اللي يستناه الباكاند نتاعك 🔥
       await api.post("/mobile/quick-transfer", {
         qr_code: qrCode,
         current_emplacement_id: emplacementId
@@ -123,7 +134,7 @@ function TransferRequestContent() {
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
         
-        {/* 🔹 INFO MESSAGE (Explication de la Phase 1) 🔹 */}
+        {/* 🔹 INFO MESSAGE 🔹 */}
         <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex gap-3 text-blue-800">
           <Info className="shrink-0 mt-0.5" size={20} />
           <p className="text-xs leading-relaxed font-medium">
@@ -147,6 +158,9 @@ function TransferRequestContent() {
             <div className="flex items-center gap-1 text-xs text-slate-500 mt-1 font-medium">
               <MapPin size={12} className="text-orange-500"/> Origine: <span className="text-slate-700">{item.emplacement?.nom || "Inconnu"}</span>
             </div>
+            <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+              <Building2 size={10} /> Parc: {item.emplacement?.parc?.nom || "Inconnu"}
+            </div>
           </div>
         </div>
 
@@ -161,7 +175,10 @@ function TransferRequestContent() {
             <label className="text-xs font-semibold text-slate-500 ml-1">1. Parc / Site</label>
             <Popover open={openParc} onOpenChange={setOpenParc}>
               <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" aria-expanded={openParc} className="w-full h-14 rounded-2xl justify-between bg-slate-50 border-slate-200 text-base font-normal">
+                <Button 
+                  variant="outline" role="combobox" aria-expanded={openParc} 
+                  className={cn("w-full h-14 rounded-2xl justify-between bg-slate-50 text-base font-normal", isDifferentParc ? "border-red-300 ring-1 ring-red-100" : "border-slate-200")}
+                >
                   {parcId ? (
                     <span className="flex items-center gap-2 text-slate-900"><Building2 size={18} className="text-slate-400"/> {parcs.find(p => p.id.toString() === parcId)?.nom}</span>
                   ) : <span className="text-slate-400">Où va l'article ?</span>}
@@ -195,7 +212,11 @@ function TransferRequestContent() {
             <label className="text-xs font-semibold text-slate-500 ml-1">2. Bureau / Salle *</label>
             <Popover open={openEmp} onOpenChange={setOpenEmp}>
               <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" aria-expanded={openEmp} disabled={!parcId} className="w-full h-14 rounded-2xl justify-between bg-slate-50 border-slate-200 text-base font-normal">
+                <Button 
+                  variant="outline" role="combobox" aria-expanded={openEmp} 
+                  disabled={!parcId || isDifferentParc} 
+                  className={cn("w-full h-14 rounded-2xl justify-between bg-slate-50 text-base font-normal", isSameEmplacement ? "border-orange-300 ring-1 ring-orange-100" : "border-slate-200")}
+                >
                   {emplacementId ? (
                     <span className="flex items-center gap-2 text-slate-900"><MapPin size={18} className="text-blue-500"/> {availableEmplacements.find(e => e.id.toString() === emplacementId)?.nom}</span>
                   ) : <span className="text-slate-400">Sélectionner la salle...</span>}
@@ -224,11 +245,39 @@ function TransferRequestContent() {
             </Popover>
           </div>
 
+          {/* 🔥 ALERTS VISUELLES 🔥 */}
+          {isDifferentParc && (
+            <div className="bg-red-50 p-3 rounded-xl border border-red-200 flex gap-2 text-red-700 animate-in fade-in zoom-in duration-300">
+              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+              <p className="text-xs font-semibold leading-relaxed">
+                Impossible : Vous ne pouvez pas transférer un équipement vers un autre parc. Veuillez sélectionner le parc actuel.
+              </p>
+            </div>
+          )}
+
+          {isSameEmplacement && (
+            <div className="bg-orange-50 p-3 rounded-xl border border-orange-200 flex gap-2 text-orange-700 animate-in fade-in zoom-in duration-300">
+              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+              <p className="text-xs font-semibold leading-relaxed">
+                L'équipement se trouve déjà dans ce bureau.
+              </p>
+            </div>
+          )}
+
+          {!isDifferentParc && !isSameEmplacement && parcId && emplacementId && (
+            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 flex gap-2 text-emerald-700 animate-in fade-in zoom-in duration-300">
+              <Check size={18} className="shrink-0 mt-0.5" />
+              <p className="text-xs font-semibold leading-relaxed">
+                Transfert autorisé au sein du même parc.
+              </p>
+            </div>
+          )}
+
           <div className="pt-4">
             <Button 
               type="submit" 
-              disabled={submitLoading || !emplacementId} 
-              className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200"
+              disabled={submitLoading || !emplacementId || isDifferentParc || isSameEmplacement} 
+              className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 disabled:opacity-50 disabled:shadow-none"
             >
               {submitLoading ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2 w-5 h-5"/>}
               Envoyer la demande
