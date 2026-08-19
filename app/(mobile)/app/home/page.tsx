@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/axios";
-import { Loader2, ArrowRightLeft, PackagePlus, DoorOpen, ScanLine, Bell, MapPin, Search, Send, Inbox } from "lucide-react";
+import { Loader2, PackagePlus, DoorOpen, ScanLine, Bell, MapPin, Send, Inbox } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function MobileHomePage() {
@@ -41,7 +41,7 @@ export default function MobileHomePage() {
   return (
     <div className="p-5 space-y-6">
       
-      {/* 🔹 HEADER: ترحيب وإشعارات 🔹 */}
+      {/* 🔹 HEADER 🔹 */}
       <header className="flex justify-between items-center pt-2">
         <div>
           <p className="text-sm font-medium text-slate-500">Bonjour,</p>
@@ -81,17 +81,13 @@ export default function MobileHomePage() {
         </div>
       </section>
 
-      {/* 🔹 ACTIONS RAPIDES (Shortcuts) 🔹 */}
+      {/* 🔹 ACTIONS RAPIDES 🔹 */}
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Actions Rapides</h3>
         
         <div className="grid grid-cols-2 gap-4">
           
-          {/* Action 1: Placement Initial */}
-          <Card 
-            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-emerald-50/50"
-            onClick={() => handleQuickAction('initial_placement')}
-          >
+          <Card className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-emerald-50/50" onClick={() => handleQuickAction('initial_placement')}>
             <CardContent className="p-4 flex flex-col items-center text-center gap-3">
               <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
                 <PackagePlus size={24} />
@@ -103,11 +99,7 @@ export default function MobileHomePage() {
             </CardContent>
           </Card>
 
-          {/* Action 2: Statut Salle */}
-          <Card 
-            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-purple-50/50"
-            onClick={() => handleQuickAction('room_status')}
-          >
+          <Card className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-purple-50/50" onClick={() => handleQuickAction('room_status')}>
             <CardContent className="p-4 flex flex-col items-center text-center gap-3">
               <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shrink-0">
                 <DoorOpen size={24} />
@@ -119,11 +111,7 @@ export default function MobileHomePage() {
             </CardContent>
           </Card>
 
-          {/* Action 3: Demande Transfert (Phase 1) */}
-          <Card 
-            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-orange-50/50"
-            onClick={() => handleQuickAction('transfer_request')}
-          >
+          <Card className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-orange-50/50" onClick={() => handleQuickAction('transfer_request')}>
             <CardContent className="p-4 flex flex-col items-center text-center gap-3">
               <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
                 <Send size={24} />
@@ -135,11 +123,7 @@ export default function MobileHomePage() {
             </CardContent>
           </Card>
 
-          {/* Action 4: Réception Transfert (Phase 3) 🔥 NOUVEAU 🔥 */}
-          <Card 
-            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-cyan-50/50"
-            onClick={() => handleQuickAction('transfer_receive')}
-          >
+          <Card className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-cyan-50/50" onClick={() => handleQuickAction('transfer_receive')}>
             <CardContent className="p-4 flex flex-col items-center text-center gap-3">
               <div className="w-12 h-12 bg-cyan-100 text-cyan-600 rounded-full flex items-center justify-center">
                 <Inbox size={24} />
