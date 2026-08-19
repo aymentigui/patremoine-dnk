@@ -4,18 +4,17 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/axios";
 import { 
-  ArrowLeft, ArrowRightLeft, Package, MapPin, 
-  Loader2, Building2, Check, ChevronsUpDown 
+  ArrowLeft, Send, Package, MapPin, 
+  Loader2, Building2, Check, ChevronsUpDown, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 
-function QuickTransferContent() {
+function TransferRequestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const qrCode = searchParams.get("qr");
@@ -27,7 +26,6 @@ function QuickTransferContent() {
   
   const [parcId, setParcId] = useState<string>("");
   const [emplacementId, setEmplacementId] = useState<string>("");
-  const [motif, setMotif] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -46,7 +44,6 @@ function QuickTransferContent() {
 
     const fetchData = async () => {
       try {
-        // نجبدو العتاد + الباركات + الأماكن في ضربة وحدة باش نزربو
         const [itemRes, parcRes, empRes] = await Promise.all([
           api.get(`/article-items/qr/${qrCode}`),
           api.get("/parcs?per_page=500"),
@@ -75,30 +72,31 @@ function QuickTransferContent() {
 
   const handleParcChange = (val: string) => {
     setParcId(val);
-    setEmplacementId(""); // Reset emplacement when parc changes
+    setEmplacementId(""); 
   };
 
-  // 2. Submit Transfer
+  // 2. إرسال طلب التحويل (Phase 1)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emplacementId) return toast.error("Veuillez sélectionner la destination.");
+    if (!emplacementId) return toast.error("Veuillez sélectionner le nouvel emplacement.");
     
     // تأكد ما يبعثوش لنفس البلاصة
     if (item.emplacement_id?.toString() === emplacementId) {
-      return toast.error("L'article est déjà dans cet emplacement !");
+      return toast.error("L'article est déjà affecté à cet emplacement !");
     }
 
     try {
       setSubmitLoading(true);
+      // 🔥 استعمال الـ Payload اللي يستناه الباكاند نتاعك 🔥
       await api.post("/mobile/quick-transfer", {
         qr_code: qrCode,
-        current_emplacement_id: emplacementId,
+        current_emplacement_id: emplacementId
       });
       
-      toast.success("Transfert effectué avec succès !");
-      router.push("/app/home"); // نرجعوه للرئيسية بعد نجاح العملية
+      toast.success("Demande envoyée ! En attente d'approbation.");
+      router.push("/app/home"); 
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors du transfert.");
+      toast.error(error.response?.data?.message || "Erreur lors de l'envoi de la demande.");
     } finally {
       setSubmitLoading(false);
     }
@@ -119,18 +117,26 @@ function QuickTransferContent() {
           <ArrowLeft size={20} className="text-slate-700" />
         </button>
         <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <ArrowRightLeft className="text-blue-600" size={20}/> Transfert Rapide
+          <Send className="text-blue-600" size={20}/> Demande de Transfert
         </h1>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
         
+        {/* 🔹 INFO MESSAGE (Explication de la Phase 1) 🔹 */}
+        <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex gap-3 text-blue-800">
+          <Info className="shrink-0 mt-0.5" size={20} />
+          <p className="text-xs leading-relaxed font-medium">
+            Vous initiez une <strong>demande de transfert</strong>. L'article sera mis en attente jusqu'à l'approbation de l'administration, puis devra être réceptionné.
+          </p>
+        </div>
+
         {/* 🔹 ARTICLE INFO 🔹 */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center gap-4 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-800"></div>
-          <div className="w-16 h-16 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center shrink-0">
+          <div className="w-16 h-16 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden">
             {item.image_url ? (
-              <img src={item.image_url} alt="Article" className="w-full h-full object-cover rounded-2xl" />
+              <img src={item.image_url} alt="Article" className="w-full h-full object-cover" />
             ) : (
               <Package size={28} />
             )}
@@ -139,14 +145,16 @@ function QuickTransferContent() {
             <h2 className="text-base font-bold text-slate-900 leading-tight">{item.article?.nom || "Article"}</h2>
             <Badge className="bg-slate-100 text-slate-600 font-mono text-[10px] mt-1 hover:bg-slate-100 border-0">{item.qr_code_reference}</Badge>
             <div className="flex items-center gap-1 text-xs text-slate-500 mt-1 font-medium">
-              <MapPin size={12}/> Actuellement : <span className="text-slate-700">{item.emplacement?.nom || "Inconnu"}</span>
+              <MapPin size={12} className="text-orange-500"/> Origine: <span className="text-slate-700">{item.emplacement?.nom || "Inconnu"}</span>
             </div>
           </div>
         </div>
 
         {/* 🔹 TRANSFER FORM 🔹 */}
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-5">
-          <h3 className="text-sm font-bold text-slate-800 uppercase">Nouvelle Destination</h3>
+          <h3 className="text-sm font-bold text-slate-800 uppercase flex items-center gap-2">
+            <MapPin size={16} className="text-blue-500"/> Emplacement de destination
+          </h3>
 
           {/* COMBOBOX: PARC */}
           <div className="space-y-1.5">
@@ -156,7 +164,7 @@ function QuickTransferContent() {
                 <Button variant="outline" role="combobox" aria-expanded={openParc} className="w-full h-14 rounded-2xl justify-between bg-slate-50 border-slate-200 text-base font-normal">
                   {parcId ? (
                     <span className="flex items-center gap-2 text-slate-900"><Building2 size={18} className="text-slate-400"/> {parcs.find(p => p.id.toString() === parcId)?.nom}</span>
-                  ) : <span className="text-slate-400">Sélectionner un parc...</span>}
+                  ) : <span className="text-slate-400">Où va l'article ?</span>}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -190,7 +198,7 @@ function QuickTransferContent() {
                 <Button variant="outline" role="combobox" aria-expanded={openEmp} disabled={!parcId} className="w-full h-14 rounded-2xl justify-between bg-slate-50 border-slate-200 text-base font-normal">
                   {emplacementId ? (
                     <span className="flex items-center gap-2 text-slate-900"><MapPin size={18} className="text-blue-500"/> {availableEmplacements.find(e => e.id.toString() === emplacementId)?.nom}</span>
-                  ) : <span className="text-slate-400">Sélectionner un emplacement...</span>}
+                  ) : <span className="text-slate-400">Sélectionner la salle...</span>}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -216,24 +224,14 @@ function QuickTransferContent() {
             </Popover>
           </div>
 
-          <div className="space-y-1.5 pt-2">
-            <label className="text-xs font-semibold text-slate-500 ml-1">Motif du transfert (Optionnel)</label>
-            <Textarea 
-              value={motif}
-              onChange={(e) => setMotif(e.target.value)}
-              placeholder="Ex: Demande du service IT..." 
-              className="h-20 rounded-2xl bg-slate-50 border-slate-200 resize-none" 
-            />
-          </div>
-
           <div className="pt-4">
             <Button 
               type="submit" 
               disabled={submitLoading || !emplacementId} 
               className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200"
             >
-              {submitLoading ? <Loader2 className="animate-spin mr-2" /> : <ArrowRightLeft className="mr-2 w-5 h-5"/>}
-              Confirmer le transfert
+              {submitLoading ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2 w-5 h-5"/>}
+              Envoyer la demande
             </Button>
           </div>
         </form>
@@ -246,7 +244,7 @@ function QuickTransferContent() {
 export default function QuickTransferPage() {
   return (
     <Suspense fallback={<div className="flex h-full items-center justify-center bg-slate-50"><Loader2 className="w-8 h-8 animate-spin text-blue-600"/></div>}>
-      <QuickTransferContent />
+      <TransferRequestContent />
     </Suspense>
   );
 }

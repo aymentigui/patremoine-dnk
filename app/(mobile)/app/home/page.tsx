@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import api from "@/lib/axios";
-import { Loader2, ArrowRightLeft, PackagePlus, DoorOpen, ScanLine, Bell, MapPin, Search } from "lucide-react";
+import { Loader2, ArrowRightLeft, PackagePlus, DoorOpen, ScanLine, Bell, MapPin, Search, Send, Inbox } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function MobileHomePage() {
@@ -19,7 +18,6 @@ export default function MobileHomePage() {
         setUser(res.data);
       } catch (error) {
         console.error("Erreur de chargement de l'utilisateur", error);
-        // إذا كان التوكن ميت، نرجعوه للوغين
         router.push("/login");
       } finally {
         setLoading(false);
@@ -28,7 +26,6 @@ export default function MobileHomePage() {
     fetchUser();
   }, [router]);
 
-  // دالة باش نبعثوه للسكانار مع نوع العملية (Action)
   const handleQuickAction = (actionType: string) => {
     router.push(`/app/scan?action=${actionType}`);
   };
@@ -106,37 +103,50 @@ export default function MobileHomePage() {
             </CardContent>
           </Card>
 
-          {/* Action 2: Transfert Rapide */}
+          {/* Action 2: Statut Salle */}
           <Card 
-            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-orange-50/50"
-            onClick={() => handleQuickAction('quick_transfer')}
+            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-purple-50/50"
+            onClick={() => handleQuickAction('room_status')}
           >
             <CardContent className="p-4 flex flex-col items-center text-center gap-3">
-              <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
-                <ArrowRightLeft size={24} />
+              <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shrink-0">
+                <DoorOpen size={24} />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-800">Transfert</h4>
-                <p className="text-[10px] text-slate-500 mt-0.5">Déplacer un article</p>
+                <h4 className="text-sm font-bold text-slate-800">Statut Salle</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">Vérifier le contenu</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Action 3: Statut Salle */}
+          {/* Action 3: Demande Transfert (Phase 1) */}
           <Card 
-            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-purple-50/50 col-span-2"
-            onClick={() => handleQuickAction('room_status')}
+            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-orange-50/50"
+            onClick={() => handleQuickAction('transfer_request')}
           >
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shrink-0">
-                <DoorOpen size={24} />
+            <CardContent className="p-4 flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
+                <Send size={24} />
               </div>
-              <div className="text-left">
-                <h4 className="text-sm font-bold text-slate-800">Statut de la salle</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Vérifier l'inventaire d'un emplacement spécifique.</p>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Demander</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">Initier un transfert</p>
               </div>
-              <div className="ml-auto bg-white p-2 rounded-full shadow-sm">
-                <Search size={16} className="text-slate-400" />
+            </CardContent>
+          </Card>
+
+          {/* Action 4: Réception Transfert (Phase 3) 🔥 NOUVEAU 🔥 */}
+          <Card 
+            className="border-none shadow-sm active:scale-95 transition-transform cursor-pointer bg-cyan-50/50"
+            onClick={() => handleQuickAction('transfer_receive')}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 bg-cyan-100 text-cyan-600 rounded-full flex items-center justify-center">
+                <Inbox size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Réceptionner</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">Valider l'arrivée</p>
               </div>
             </CardContent>
           </Card>

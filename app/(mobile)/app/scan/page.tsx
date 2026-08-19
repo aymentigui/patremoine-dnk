@@ -26,29 +26,28 @@ function ScannerContent() {
   }, []);
 
   // دالة التعامل مع الكود بعد قراءته
-  const handleScanSuccess = useCallback((code: string) => {
+const handleScanSuccess = useCallback((code: string) => {
     stopScanner();
     setIsScanning(false);
     
-    // فايبريسيون خفيفة في التليفون باش الخدام يعرف بلي تقرا الكود
     if (navigator.vibrate) navigator.vibrate(200);
 
     toast.success(`Code scanné : ${code}`);
 
-    // التوجيه الذكي على حساب الـ action
+    // التوجيه الذكي المحدث
     if (action === "initial_placement") {
       router.push(`/app/inventory/placement?qr=${code}`);
-    } else if (action === "quick_transfer") {
+    } else if (action === "transfer_request") { // 👈 تم تغيير الاسم
       router.push(`/app/inventory/transfer?qr=${code}`);
+    } else if (action === "transfer_receive") { // 👈 أكشن الاستلام الجديد
+      router.push(`/app/inventory/receive?qr=${code}`);
     } else if (action === "room_status") {
       router.push(`/app/inventory/room?qr=${code}`);
     } else if (action === "inventory") {
       const commissionId = searchParams.get("commission_id");
       const emplacementId = searchParams.get("emplacement_id");
-      // نرجعوه لصفحة الجرد مع الكود اللي سكانيناه
       router.push(`/app/inventory/${commissionId}?emplacement_id=${emplacementId}&qr=${code}`);
     } else {
-      // إذا ماكانش أكشن (سكانار عام)، نبعثوه لصفحة تفاصيل العتاد/السيارة
       router.push(`/app/details?qr=${code}`);
     }
   }, [action, router, searchParams, stopScanner]);
