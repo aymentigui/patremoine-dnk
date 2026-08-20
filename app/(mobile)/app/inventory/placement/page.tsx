@@ -78,7 +78,9 @@ function InitialPlacementContent() {
   // 🔥 اللوجيك البصري (Verification States) 🔥
   // نتأكدو إذا القطعة عندها emplacement_id من قبل
   const hasEmplacement = item?.emplacement_id !== null && item?.emplacement_id !== undefined && item?.is_labeled === true;
-
+  alert("hasEmplacement : "+hasEmplacement)
+  alert(item.emplacement_id)
+  alert(item.is_labeled)
   // 2. إرسال طلب التموضع
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
