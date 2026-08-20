@@ -30,6 +30,8 @@ function InitialPlacementContent() {
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  const [hasEmplacement, setHasEmplacement] = useState(false);
+
   // Combobox States
   const [openParc, setOpenParc] = useState(false);
   const [openEmp, setOpenEmp] = useState(false);
@@ -53,6 +55,8 @@ function InitialPlacementContent() {
         setItem(itemRes.data.data);
         setParcs(parcRes.data.data?.data || parcRes.data.data || []);
         setEmplacements(empRes.data.data?.data || empRes.data.data || []);
+        const hasEmp = itemRes.data.data?.emplacement_id !== null && itemRes.data.data?.emplacement_id !== undefined && itemRes.data.data?.is_labeled === true;
+        setHasEmplacement(hasEmp);
       } catch (error: any) {
         toast.error(error.response?.data?.message || "Erreur de chargement.");
         router.push("/app/home");
@@ -77,10 +81,9 @@ function InitialPlacementContent() {
 
   // 🔥 اللوجيك البصري (Verification States) 🔥
   // نتأكدو إذا القطعة عندها emplacement_id من قبل
-  const hasEmplacement = item?.emplacement_id !== null && item?.emplacement_id !== undefined && item?.is_labeled === true;
   alert("hasEmplacement : "+hasEmplacement)
   alert("emplacement_id : "+item?.emplacement_id)
-  alert("is_labeled : "+item?.is_labeled)
+  alert("is_labeled : "+ item?.is_labeled)
   // 2. إرسال طلب التموضع
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
