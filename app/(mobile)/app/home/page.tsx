@@ -117,7 +117,7 @@ export default function MobileHomePage() {
                 <Send size={24} />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-800">Demander</h4>
+                <h4 className="text-sm font-bold text-slate-800">Envoyer</h4>
                 <p className="text-[10px] text-slate-500 mt-0.5">Initier un transfert</p>
               </div>
             </CardContent>
