@@ -113,7 +113,6 @@ export default function InventorySessionPage() {
   const handleConfirmScan = async () => {
     try {
       setSubmitLoading(true);
-      alert(1)
       await api.post("/inventory/scan/submit", {
         qr_code: qrScanned,
         commission_id: commissionId,
@@ -127,6 +126,7 @@ export default function InventorySessionPage() {
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur d'enregistrement.");
     } finally {
+      setShowPreviewModal(false)
       setSubmitLoading(false);
     }
   };
