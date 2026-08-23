@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
-import { Loader2, ArrowLeft, Building2, Users, CalendarRange, Play, CheckCircle2, AlertTriangle, FileSpreadsheet, ShieldAlert, BarChart3, ScanLine, XCircle, MapPin, QrCode, Clock, User, Plus, Check, ChevronsUpDown, Filter, X } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, Users, CalendarRange, Play, CheckCircle2, AlertTriangle, FileSpreadsheet, ShieldAlert, BarChart3, ScanLine, XCircle, MapPin, QrCode, Clock, User, Plus, Check, ChevronsUpDown, Filter, X, Search } from "lucide-react";
 
 const PERMISSIONS = {
   VIEW: "voir_campagnes_inventaire",
