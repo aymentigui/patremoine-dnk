@@ -11,7 +11,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 
 export default function InventorySessionPage() {
   const router = useRouter();
@@ -247,12 +246,8 @@ export default function InventorySessionPage() {
           <div className="px-6 py-6 space-y-4">
             
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-                {previewData.image_url ? (
-                  <Image src={previewData.image_url} alt="" width={48} height={48} className="w-full h-full object-cover" />
-                ) : (
-                  <CheckCircle className="w-6 h-6" />
-                )}
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-lg">Article Reconnu</h3>
@@ -286,18 +281,6 @@ export default function InventorySessionPage() {
                 </div>
               </div>
             )}
-
-            {
-              previewData.emplacement_systeme && (
-                <div className="flex items-center justify-between text-sm items-center">
-                  <span className="text-slate-500">Emplacement:</span>
-                 <div className="text-right flex flex-col items-end">
-                   <span className="font-bold text-slate-900">{previewData.emplacement_systeme.nom || "—"}</span>
-                   <p className="text-xs text-slate-500">{previewData.emplacement_systeme.parc || "—"}</p>
-                 </div>
-                </div>
-              )
-            }
 
             <div className="pt-2">
               <label className="text-xs font-bold text-slate-700 uppercase ml-1 block mb-2">État de l'article constaté :</label>
