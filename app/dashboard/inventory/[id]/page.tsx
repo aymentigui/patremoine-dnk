@@ -65,22 +65,25 @@ export default function CampaignDashboardPage() {
     return emplacements.filter(e => e.parc_id?.toString() === newComm.parc_id);
   }, [newComm.parc_id, emplacements]);
 
-  // Fetch Report Data
-  const fetchCampaignData = useCallback(async () => {
+  // 🔥 Fetch Report Data (Avec option pour ne pas bloquer l'écran à chaque refresh) 🔥
+  const fetchCampaignData = useCallback(async (showFullLoader = true) => {
     if (!hasPermission(PERMISSIONS.VIEW)) return;
     try {
-      setLoading(true);
+      if (showFullLoader) setLoading(true);
       const campRes = await api.get(`/inventory-campaigns/${campaignId}`);
       setCampaign(campRes.data.data);
       if (campRes.data.data.status !== 'planifiee') {
         const repRes = await api.get(`/inventory-campaigns/${campaignId}/report`);
         setReport(repRes.data);
       }
-    } catch (error) { toast.error("Erreur de chargement."); } 
-    finally { setLoading(false); }
+    } catch (error) { 
+      toast.error("Erreur de chargement."); 
+    } finally { 
+      if (showFullLoader) setLoading(false); 
+    }
   }, [campaignId, hasPermission]);
 
-  // Fetch Paginated Scans
+  // 🔥 Fetch Paginated Scans (Indépendant, ne recharge que le tableau) 🔥
   const fetchScans = useCallback(async (page = 1) => {
     try {
       setScansLoading(true);
@@ -103,14 +106,19 @@ export default function CampaignDashboardPage() {
     }
   }, [campaignId, filters]);
 
+  // 1️⃣ Initialisation au montage de la page (Une seule fois)
   useEffect(() => { 
-    fetchCampaignData(); 
-    fetchScans(); // Initial fetch for scans
+    if (hasPermission(PERMISSIONS.VIEW)) {
+      fetchCampaignData(true); 
+      fetchScans(1); 
+    }
     if (hasPermission(PERMISSIONS.ADD_COMMISSION)) {
       api.get("/users?per_page=500").then(res => setUsers(res.data.data.data || []));
     }
-  }, [fetchCampaignData, fetchScans, hasPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignId]);
 
+  // 2️⃣ Charger les parcs et emplacements pour le Modal
   useEffect(() => {
     if (isAddCommissionModalOpen && parcs.length === 0) {
       Promise.all([
@@ -128,7 +136,7 @@ export default function CampaignDashboardPage() {
       setActionLoading(true);
       await api.patch(`/inventory-campaigns/${campaignId}/status`, { status: newStatus });
       toast.success("Statut mis à jour.");
-      fetchCampaignData();
+      fetchCampaignData(false); // Recharge les données en arrière-plan
     } catch (error: any) { toast.error("Erreur de mise à jour."); } 
     finally { setActionLoading(false); }
   };
@@ -139,7 +147,7 @@ export default function CampaignDashboardPage() {
       const res = await api.post(`/inventory-campaigns/${campaignId}/cloturer`);
       toast.success(res.data.message || "Campagne clôturée.");
       setIsClotureModalOpen(false);
-      fetchCampaignData();
+      fetchCampaignData(true);
     } catch (error: any) { toast.error("Erreur lors de la clôture."); } 
     finally { setActionLoading(false); }
   };
@@ -163,9 +171,26 @@ export default function CampaignDashboardPage() {
       await api.post(`/inventory-campaigns/${campaignId}/commissions`, newComm);
       toast.success("Commission ajoutée !");
       setIsAddCommissionModalOpen(false);
-      fetchCampaignData(); 
+      setNewComm({ nom: "", step_level: 2, user_ids: [], parc_id: "", emplacement_id: "" });
+      fetchCampaignData(false); // Recharge les données en arrière-plan sans flash
     } catch (error: any) { toast.error("Erreur lors de l'ajout."); } 
     finally { setActionLoading(false); }
+  };
+
+  const toggleUserInNewCommission = (userId: number) => {
+    setNewComm(prev => {
+      const isSelected = prev.user_ids.includes(userId);
+      return {
+        ...prev,
+        user_ids: isSelected ? prev.user_ids.filter(id => id !== userId) : [...prev.user_ids, userId]
+      };
+    });
+  };
+
+  const openAddCommissionModal = () => {
+    const maxStep = campaign.commissions.reduce((max: number, comm: any) => Math.max(max, comm.step_level), 0);
+    setNewComm({ nom: `Ligne ${campaign.commissions.length + 1} (Contre-Inventaire)`, step_level: maxStep + 1, user_ids: [], parc_id: "", emplacement_id: "" });
+    setIsAddCommissionModalOpen(true);
   };
 
   if (!hasPermission(PERMISSIONS.VIEW)) return <div className="p-8 text-center text-slate-500">🚫 Accès refusé.</div>;
@@ -189,6 +214,12 @@ export default function CampaignDashboardPage() {
             {campaign.status === 'planifiee' && <Badge className="bg-amber-100 text-amber-700">⏳ Planifiée</Badge>}
             {campaign.status === 'en_cours' && <Badge className="bg-emerald-100 text-emerald-700 animate-pulse">▶ En Cours</Badge>}
             {campaign.status === 'cloturee' && <Badge className="bg-slate-100 text-slate-700">🛑 Clôturée</Badge>}
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-slate-600">
+            <div className="flex items-center gap-1.5"><CalendarRange className="w-4 h-4 text-violet-500"/> Année: {campaign.annee}</div>
+            <div className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-indigo-500"/> Périmètre: {campaign.parc?.nom || 'Global'}</div>
+            <div className="flex items-center gap-1.5"><Users className="w-4 h-4 text-blue-500"/> {campaign.commissions?.length || 0} Commissions</div>
           </div>
         </div>
 
@@ -341,9 +372,41 @@ export default function CampaignDashboardPage() {
 
         {/* TAB 3: COMMISSIONS */}
         <TabsContent value="commissions" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {!isCloturee && hasPermission(PERMISSIONS.ADD_COMMISSION) && (
+            <div className="flex justify-end mb-4">
+              <Button onClick={openAddCommissionModal} className="bg-violet-600 hover:bg-violet-700 text-white">
+                <Plus className="w-4 h-4 mr-2" /> Ajouter une commission
+              </Button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {campaign.commissions.map((comm: any) => (
-              <div key={comm.id} className="bg-white p-5 rounded-2xl border shadow-sm relative overflow-hidden"><div className="absolute top-0 left-0 w-1 h-full bg-violet-500"></div><h3 className="font-bold text-slate-800">{comm.nom}</h3></div>
+              <div key={comm.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-violet-500"></div>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-bold text-slate-800">{comm.nom}</h3>
+                    <span className="text-xs text-slate-500 font-medium">Niveau: {comm.step_level}</span>
+                  </div>
+                  {comm.status === 'en_cours' ? <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Actif</Badge> : <Badge variant="outline" className="text-[10px]">{comm.status}</Badge>}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Membres assignés :</p>
+                  {comm.users && comm.users.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {comm.users.map((u: any) => (
+                        <li key={u.id} className="text-sm text-slate-700 flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                          <div className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[10px] font-bold">{u.name.charAt(0)}</div>
+                          <span className="truncate">{u.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-sm text-slate-400 italic">Aucun membre.</div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </TabsContent>
