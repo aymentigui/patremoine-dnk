@@ -411,21 +411,34 @@ export default function CampaignDashboardPage() {
                            <TableHead className="text-xs text-right">Date/Heure</TableHead>
                          </TableRow>
                        </TableHeader>
-                       <TableBody>
+                      <TableBody>
                          {scans.map((scan: any) => {
-                           const isEcart = report.details.deplaces.some((d: any) => d.qr_code === scan.qr_code);
+                           // 1. إيكار البلاصة (Déplacé)
+                           const isEcartPlace = scan.has_ecart_place;
+                           // 2. إيكار اللجان (Contre-Inventaire)
+                           const isEcartComm = scan.ecart_commission;
 
                            return (
-                             <TableRow key={scan.id} className={isEcart ? "bg-orange-50/30" : ""}>
+                             <TableRow key={scan.id} className={cn(isEcartPlace && "bg-orange-50/30", isEcartComm && "bg-red-50/30")}>
                                <TableCell>
                                  <div className="font-semibold text-sm">{scan.nom}</div>
                                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">{scan.qr_code}</div>
+                                 
+                                 {/* 🔥 اللمسة السحرية: إظهار اللجان التي نسيت القطعة 🔥 */}
+                                 {isEcartComm && (
+                                   <div className="mt-1">
+                                     <Badge variant="destructive" className="text-[9px] bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">
+                                       <AlertTriangle className="w-3 h-3 mr-1"/> Oublié par: {scan.missed_by}
+                                     </Badge>
+                                   </div>
+                                 )}
                                </TableCell>
                                <TableCell>
                                  <div className="text-xs font-medium flex items-center gap-1">
                                    <MapPin className="w-3 h-3 text-slate-400"/> {scan.emplacement_scanne}
                                  </div>
-                                 {isEcart && <span className="text-[10px] text-orange-600 font-bold ml-4">Écart détecté</span>}
+                                 {/* إظهار علامة إيكار الموقع */}
+                                 {isEcartPlace && <span className="text-[10px] text-orange-600 font-bold ml-4">Mauvais emplacement</span>}
                                </TableCell>
                                <TableCell>
                                  <Badge variant="outline" className="text-[10px] bg-white capitalize">
