@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 export default function InventorySessionPage() {
   const router = useRouter();
@@ -113,6 +114,7 @@ export default function InventorySessionPage() {
   const handleConfirmScan = async () => {
     try {
       setSubmitLoading(true);
+      alert(1)
       await api.post("/inventory/scan/submit", {
         qr_code: qrScanned,
         commission_id: commissionId,
@@ -245,8 +247,12 @@ export default function InventorySessionPage() {
           <div className="px-6 py-6 space-y-4">
             
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-6 h-6" />
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                {previewData.image_url ? (
+                  <Image src={previewData.image_url} alt="" width={48} height={48} className="w-full h-full object-cover" />
+                ) : (
+                  <CheckCircle className="w-6 h-6" />
+                )}
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-lg">Article Reconnu</h3>
@@ -265,10 +271,33 @@ export default function InventorySessionPage() {
 
                 <div className="flex justify-between text-sm items-center">
                   <span className="text-slate-500">Article:</span>
-                  <span className="font-bold text-slate-900 text-right">{previewData.article_nom || "—"}</span>
+                 <div className="text-right flex flex-col items-end">
+                   <span className="font-bold text-slate-900">{previewData.article.nom || "—"}</span>
+                   {previewData.article.marque && (
+                     <p className="text-xs text-slate-500">Marque : {previewData.article.marque}</p>
+                   )}
+                    {previewData.article.modele && (
+                     <p className="text-xs text-slate-500">Modèle : {previewData.article.modele}</p>
+                   )}
+                   {previewData.article.numero_serie && (
+                     <p className="text-xs text-slate-500">N° Serie : {previewData.article.numero_serie}</p>
+                   )}
+                 </div>
                 </div>
               </div>
             )}
+
+            {
+              previewData.emplacement_systeme && (
+                <div className="flex items-center justify-between text-sm items-center">
+                  <span className="text-slate-500">Emplacement:</span>
+                 <div className="text-right flex flex-col items-end">
+                   <span className="font-bold text-slate-900">{previewData.emplacement_systeme.nom || "—"}</span>
+                   <p className="text-xs text-slate-500">{previewData.emplacement_systeme.parc || "—"}</p>
+                 </div>
+                </div>
+              )
+            }
 
             <div className="pt-2">
               <label className="text-xs font-bold text-slate-700 uppercase ml-1 block mb-2">État de l'article constaté :</label>
@@ -284,7 +313,7 @@ export default function InventorySessionPage() {
               </Select>
             </div>
 
-            <DialogFooter className="pt-4 flex flex-row gap-3 px-0">
+            <DialogFooter className="pt-4 flex flex-row flex-wrap gap-3 px-0">
               <Button type="button" variant="outline" onClick={() => { setShowPreviewModal(false); router.replace(`/app/inventory/${commissionId}`); }} className="w-full h-12 rounded-xl">Annuler</Button>
               <Button onClick={handleConfirmScan} disabled={submitLoading} className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
                 {submitLoading ? <Loader2 className="animate-spin" /> : "Valider le Scan"}
