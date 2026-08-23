@@ -5,11 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
 
-// 🔹 استدعاء الـ Store 🔹
 import { useAuthStore } from "@/store/useAuthStore";
 import { cn } from "@/lib/utils";
 
-// UI Components
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +18,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
-// Icons
-import { Loader2, ArrowLeft, Building2, Users, CalendarRange, Play, CheckCircle2, AlertTriangle, FileSpreadsheet, ShieldAlert, BarChart3, ScanLine, XCircle, MapPin, QrCode, Clock, User, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, Users, CalendarRange, Play, CheckCircle2, AlertTriangle, FileSpreadsheet, ShieldAlert, BarChart3, ScanLine, XCircle, MapPin, QrCode, Clock, User, Plus, Check, ChevronsUpDown, Info } from "lucide-react";
 
-// ==========================================
-// 🔐 إدارة الصلاحيات (PERMISSIONS)
-// ==========================================
 const PERMISSIONS = {
   VIEW: "voir_campagnes_inventaire",
   CHANGE_STATUS: "modifier_statut_campagnes", 
@@ -120,7 +114,6 @@ export default function CampaignDashboardPage() {
     }
   };
 
-  // 🔥 تصحيح دالة إغلاق الحملة لتشغيل الـ Grand Final 🔥
   const handleCloturer = async () => {
     try {
       setActionLoading(true);
@@ -140,7 +133,6 @@ export default function CampaignDashboardPage() {
     if (!newComm.nom || newComm.user_ids.length === 0) {
       return toast.error("Veuillez remplir le nom et assigner au moins un membre.");
     }
-
     try {
       setActionLoading(true);
       await api.post(`/inventory-campaigns/${campaignId}/commissions`, newComm);
@@ -169,13 +161,11 @@ export default function CampaignDashboardPage() {
     try {
       const toastId = toast.loading("Génération du rapport Excel...");
       const res = await api.get(`/inventory-campaigns/${campaignId}/export`, { responseType: 'blob' });
-      
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a'); 
       link.href = url; 
       link.setAttribute('download', `Rapport_Ecarts_Campagne_${campaignId}.xlsx`);
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      
       toast.success("Rapport téléchargé !", { id: toastId });
     } catch (error) { toast.error("Erreur lors de l'exportation."); }
   };
@@ -259,32 +249,38 @@ export default function CampaignDashboardPage() {
         <TabsContent value="rapport" className="mt-6 space-y-6">
           {report && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {/* 🔹 STATS CARDS 🔹 */}
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                 <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                  <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Total Attendu</div>
+                  <div className="text-slate-500 text-[10px] font-semibold uppercase tracking-wider mb-1">Total Attendu</div>
                   <div className="text-2xl font-bold text-slate-800">{report.statistiques.total_attendu}</div>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
-                  <div className="text-blue-600 text-xs font-semibold uppercase tracking-wider mb-1">Total Scanné</div>
+                  <div className="text-blue-600 text-[10px] font-semibold uppercase tracking-wider mb-1">Total Scanné</div>
                   <div className="text-2xl font-bold text-blue-700 flex items-center gap-2"><ScanLine className="w-5 h-5"/> {report.statistiques.total_scanne}</div>
                 </div>
                 <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 shadow-sm">
-                  <div className="text-emerald-600 text-xs font-semibold uppercase tracking-wider mb-1">Conformes</div>
+                  <div className="text-emerald-600 text-[10px] font-semibold uppercase tracking-wider mb-1">Conformes</div>
                   <div className="text-2xl font-bold text-emerald-700 flex items-center gap-2"><CheckCircle2 className="w-5 h-5"/> {report.statistiques.conformes}</div>
                 </div>
                 <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 shadow-sm">
-                  <div className="text-orange-600 text-xs font-semibold uppercase tracking-wider mb-1">Déplacés (Écarts)</div>
+                  <div className="text-orange-600 text-[10px] font-semibold uppercase tracking-wider mb-1">Déplacés (Écarts)</div>
                   <div className="text-2xl font-bold text-orange-700 flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> {report.statistiques.deplaces}</div>
                 </div>
                 <div className="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm">
-                  <div className="text-red-600 text-xs font-semibold uppercase tracking-wider mb-1">Manquants</div>
+                  <div className="text-red-600 text-[10px] font-semibold uppercase tracking-wider mb-1">Manquants</div>
                   <div className="text-2xl font-bold text-red-700 flex items-center gap-2"><XCircle className="w-5 h-5"/> {report.statistiques.manquants}</div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 shadow-sm">
+                  <div className="text-purple-600 text-[10px] font-semibold uppercase tracking-wider mb-1">Hors Scope</div>
+                  <div className="text-2xl font-bold text-purple-700 flex items-center gap-2"><Info className="w-5 h-5"/> {report.statistiques.hors_scope}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {/* Table: Déplacés */}
-                <div className="bg-white rounded-2xl border border-orange-200 overflow-hidden shadow-sm">
+                
+                {/* 🔥 Table: Déplacés (Écarts) 🔥 */}
+                <div className="bg-white rounded-2xl border border-orange-200 overflow-hidden shadow-sm xl:col-span-2">
                   <div className="bg-orange-50/50 px-4 py-3 border-b border-orange-100 flex items-center justify-between">
                     <h3 className="font-bold text-orange-800 flex items-center gap-2"><AlertTriangle className="w-4 h-4"/> Matériel Déplacé ({report.statistiques.deplaces})</h3>
                   </div>
@@ -295,6 +291,7 @@ export default function CampaignDashboardPage() {
                           <TableHead className="text-orange-800 text-xs">Article (QR)</TableHead>
                           <TableHead className="text-orange-800 text-xs">Position Prévue</TableHead>
                           <TableHead className="text-orange-800 text-xs">Trouvé à</TableHead>
+                          <TableHead className="text-orange-800 text-xs">Par qui ?</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -305,10 +302,17 @@ export default function CampaignDashboardPage() {
                               <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1 mt-0.5"><QrCode className="w-3 h-3"/>{item.qr_code}</div>
                             </TableCell>
                             <TableCell className="text-xs text-slate-500 line-through">{item.emplacement_systeme}</TableCell>
-                            <TableCell className="text-xs font-semibold text-orange-600 flex items-center gap-1"><MapPin className="w-3 h-3"/> {item.emplacement_scanne}</TableCell>
+                            <TableCell>
+                              <div className="text-xs font-semibold text-orange-600 flex items-center gap-1"><MapPin className="w-3 h-3"/> {item.emplacement_scanne}</div>
+                              <div className="text-[10px] text-slate-500 mt-1">Comm: {item.commission}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs text-slate-700 flex items-center gap-1"><User className="w-3 h-3 text-blue-500"/> {item.scanneur}</div>
+                              <div className="text-[10px] text-slate-500">{item.scanned_at}</div>
+                            </TableCell>
                           </TableRow>
                         ))}
-                        {report.details.deplaces.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-slate-400 py-6 text-sm">Aucun matériel déplacé.</TableCell></TableRow>}
+                        {report.details.deplaces.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-slate-400 py-6 text-sm">Aucun matériel déplacé.</TableCell></TableRow>}
                       </TableBody>
                     </Table>
                   </div>
@@ -344,6 +348,43 @@ export default function CampaignDashboardPage() {
                     </Table>
                   </div>
                 </div>
+
+                {/* 🔥 Table: Hors Scope (Matériel Étranger) 🔥 */}
+                <div className="bg-white rounded-2xl border border-purple-200 overflow-hidden shadow-sm">
+                  <div className="bg-purple-50/50 px-4 py-3 border-b border-purple-100 flex items-center justify-between">
+                    <h3 className="font-bold text-purple-800 flex items-center gap-2"><ScanLine className="w-4 h-4"/> Étranger (Hors Scope) ({report.statistiques.hors_scope})</h3>
+                  </div>
+                  <div className="max-h-[400px] overflow-y-auto">
+                    <Table>
+                      <TableHeader className="bg-purple-50/30 sticky top-0">
+                        <TableRow>
+                          <TableHead className="text-purple-800 text-xs">Article (QR)</TableHead>
+                          <TableHead className="text-purple-800 text-xs">Trouvé à</TableHead>
+                          <TableHead className="text-purple-800 text-xs">Par qui ?</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {report.details.hors_scope.map((item: any, idx: number) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              <div className="font-semibold text-sm">{item.nom}</div>
+                              <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1 mt-0.5"><QrCode className="w-3 h-3"/>{item.qr_code}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs font-semibold text-purple-600 flex items-center gap-1"><MapPin className="w-3 h-3"/> {item.emplacement_scanne}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs text-slate-700 flex items-center gap-1"><User className="w-3 h-3 text-blue-500"/> {item.scanneur}</div>
+                              <div className="text-[10px] text-slate-500">{item.scanned_at}</div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {report.details.hors_scope.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-slate-400 py-6 text-sm">Aucun matériel hors scope.</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
               </div>
             </>
           )}
@@ -372,7 +413,6 @@ export default function CampaignDashboardPage() {
                        </TableHeader>
                        <TableBody>
                          {scans.map((scan: any) => {
-                           // 🔥 الحل السحري: نتحققوا إذا كان هاد الـ QR Code كاين في قائمة الـ Déplacés 🔥
                            const isEcart = report.details.deplaces.some((d: any) => d.qr_code === scan.qr_code);
 
                            return (
@@ -385,7 +425,6 @@ export default function CampaignDashboardPage() {
                                  <div className="text-xs font-medium flex items-center gap-1">
                                    <MapPin className="w-3 h-3 text-slate-400"/> {scan.emplacement_scanne}
                                  </div>
-                                 {/* إظهار علامة الإيكار */}
                                  {isEcart && <span className="text-[10px] text-orange-600 font-bold ml-4">Écart détecté</span>}
                                </TableCell>
                                <TableCell>
@@ -415,7 +454,6 @@ export default function CampaignDashboardPage() {
 
         {/* TAB 3: CONFIGURATION DES COMMISSIONS */}
         <TabsContent value="commissions" className="mt-6">
-          
           {!isCloturee && hasPermission(PERMISSIONS.ADD_COMMISSION) && (
             <div className="flex justify-end mb-4">
               <Button onClick={openAddCommissionModal} className="bg-violet-600 hover:bg-violet-700 text-white">
@@ -478,7 +516,6 @@ export default function CampaignDashboardPage() {
               </div>
             </div>
 
-            {/* 🔥 COMBOBOX: PARC 🔥 */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700">Parc ciblé (Optionnel)</label>
               <Popover open={openParc} onOpenChange={setOpenParc}>
@@ -510,7 +547,6 @@ export default function CampaignDashboardPage() {
               </Popover>
             </div>
 
-            {/* 🔥 COMBOBOX: EMPLACEMENT 🔥 */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700">Emplacement ciblé (Optionnel)</label>
               <Popover open={openEmp} onOpenChange={setOpenEmp}>
@@ -545,7 +581,7 @@ export default function CampaignDashboardPage() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700">Membres (Scanners) *</label>
               <DropdownMenu>
-                <DropdownMenuTrigger >
+                <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="w-full justify-between font-normal bg-white">
                     {newComm.user_ids.length > 0 ? `${newComm.user_ids.length} membre(s) sélectionné(s)` : "Assigner des membres..."}
                   </Button>
