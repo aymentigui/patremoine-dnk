@@ -24,12 +24,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Loader2, ArrowLeft, Building2, Users, CalendarRange, Play, CheckCircle2, AlertTriangle, FileSpreadsheet, ShieldAlert, BarChart3, ScanLine, XCircle, MapPin, QrCode, Clock, User, Plus, Check, ChevronsUpDown } from "lucide-react";
 
 // ==========================================
-// 🔐 إدارة الصلاحيات (PERMISSIONS) - مطابقة للباك اند
+// 🔐 إدارة الصلاحيات (PERMISSIONS)
 // ==========================================
 const PERMISSIONS = {
   VIEW: "voir_campagnes_inventaire",
-  CHANGE_STATUS: "modifier_statut_campagnes", // لإطلاق أو غلق الحملة
-  ADD_COMMISSION: "gerer_commissions_inventaire", // لإضافة اللجان
+  CHANGE_STATUS: "modifier_statut_campagnes", 
+  ADD_COMMISSION: "gerer_commissions_inventaire", 
 };
 
 export default function CampaignDashboardPage() {
@@ -37,29 +37,24 @@ export default function CampaignDashboardPage() {
   const router = useRouter();
   const campaignId = params.id;
 
-  // 🔹 جلب دالة التحقق من الصلاحيات من الـ Store 🔹
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const [campaign, setCampaign] = useState<any>(null);
   const [report, setReport] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]); // باش نخيرو الخدامين في اللجنة الجديدة
+  const [users, setUsers] = useState<any[]>([]); 
   
-  // داتا الأماكن والحظائر
   const [parcs, setParcs] = useState<any[]>([]);
   const [emplacements, setEmplacements] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   
-  // Modals States
   const [isClotureModalOpen, setIsClotureModalOpen] = useState(false);
   const [isAddCommissionModalOpen, setIsAddCommissionModalOpen] = useState(false);
 
-  // Combobox States
   const [openParc, setOpenParc] = useState(false);
   const [openEmp, setOpenEmp] = useState(false);
 
-  // New Commission Form
   const [newComm, setNewComm] = useState({ 
     nom: "", 
     step_level: 2, 
@@ -68,13 +63,11 @@ export default function CampaignDashboardPage() {
     emplacement_id: "" 
   });
 
-  // الفلترة الديناميكية للإمبلاصمون حسب البارك
   const availableEmplacements = useMemo(() => {
     if (!newComm.parc_id) return [];
     return emplacements.filter(e => e.parc_id?.toString() === newComm.parc_id);
   }, [newComm.parc_id, emplacements]);
 
-  // --- Data Fetching ---
   const fetchCampaignData = useCallback(async () => {
     if (!hasPermission(PERMISSIONS.VIEW)) return;
 
@@ -96,14 +89,11 @@ export default function CampaignDashboardPage() {
 
   useEffect(() => { 
     fetchCampaignData(); 
-    
-    // جلب الموظفين باش نخيروهم في اللجنة الجديدة
     if (hasPermission(PERMISSIONS.ADD_COMMISSION)) {
       api.get("/users?per_page=500").then(res => setUsers(res.data.data.data || []));
     }
   }, [fetchCampaignData, hasPermission]);
 
-  // جلب الحظائر والأماكن عند فتح المودال
   useEffect(() => {
     if (isAddCommissionModalOpen && parcs.length === 0) {
       Promise.all([
@@ -116,7 +106,6 @@ export default function CampaignDashboardPage() {
     }
   }, [isAddCommissionModalOpen, parcs.length]);
 
-  // --- Actions ---
   const handleUpdateStatus = async (newStatus: string) => {
     if (!confirm(`Voulez-vous vraiment passer la campagne au statut : ${newStatus.replace('_', ' ')} ?`)) return;
     try {
@@ -131,11 +120,12 @@ export default function CampaignDashboardPage() {
     }
   };
 
+  // 🔥 تصحيح دالة إغلاق الحملة لتشغيل الـ Grand Final 🔥
   const handleCloturer = async () => {
     try {
       setActionLoading(true);
-      const res = await api.patch(`/inventory-campaigns/${campaignId}/status`, { status: 'cloturee' });
-      toast.success(res.data.message || "Campagne clôturée avec succès.");
+      const res = await api.post(`/inventory-campaigns/${campaignId}/cloturer`);
+      toast.success(res.data.message || "Campagne clôturée et mise à jour avec succès.");
       setIsClotureModalOpen(false);
       fetchCampaignData();
     } catch (error: any) {
@@ -145,7 +135,6 @@ export default function CampaignDashboardPage() {
     }
   };
 
-  // 🔥 إضافة لجنة جديدة 🔥
   const handleAddCommission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComm.nom || newComm.user_ids.length === 0) {
@@ -347,7 +336,7 @@ export default function CampaignDashboardPage() {
                               <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1 mt-0.5"><QrCode className="w-3 h-3"/>{item.qr_code}</div>
                             </TableCell>
                             <TableCell className="text-xs font-medium text-slate-700">{item.emplacement_systeme}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{item.etat_systeme.replace('_', ' ')}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{item.etat_systeme?.replace('_', ' ')}</TableCell>
                           </TableRow>
                         ))}
                         {report.details.manquants.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-slate-400 py-6 text-sm">Aucun matériel manquant.</TableCell></TableRow>}
@@ -362,7 +351,7 @@ export default function CampaignDashboardPage() {
 
         {/* TAB 2: HISTORIQUE DES SCANS PAR COMMISSION */}
         <TabsContent value="scans" className="mt-6 space-y-6">
-           {report && report.details.scans_par_commission && (
+           {report && report.details?.scans_par_commission && (
              Object.entries(report.details.scans_par_commission).length > 0 ? (
                Object.entries(report.details.scans_par_commission).map(([commNom, scans]: [string, any]) => (
                  <div key={commNom} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
@@ -382,29 +371,37 @@ export default function CampaignDashboardPage() {
                          </TableRow>
                        </TableHeader>
                        <TableBody>
-                         {scans.map((scan: any) => (
-                           <TableRow key={scan.id} className={scan.has_ecart ? "bg-orange-50/30" : ""}>
-                             <TableCell>
-                               <div className="font-semibold text-sm">{scan.nom}</div>
-                               <div className="text-[10px] text-slate-500 font-mono mt-0.5">{scan.qr_code}</div>
-                             </TableCell>
-                             <TableCell>
-                               <div className="text-xs font-medium flex items-center gap-1">
-                                 <MapPin className="w-3 h-3 text-slate-400"/> {scan.emplacement_scanne}
-                               </div>
-                               {scan.has_ecart && <span className="text-[10px] text-orange-600 font-bold ml-4">Écart détecté</span>}
-                             </TableCell>
-                             <TableCell>
-                               <Badge variant="outline" className="text-[10px] bg-white">{scan.etat_trouve.replace('_', ' ')}</Badge>
-                             </TableCell>
-                             <TableCell>
-                               <div className="text-xs text-slate-700 flex items-center gap-1.5"><User className="w-3 h-3 text-blue-500"/> {scan.scanneur}</div>
-                             </TableCell>
-                             <TableCell className="text-right text-xs text-slate-500 flex items-center justify-end gap-1">
-                               <Clock className="w-3 h-3"/> {scan.scanned_at}
-                             </TableCell>
-                           </TableRow>
-                         ))}
+                         {scans.map((scan: any) => {
+                           // 🔥 الحل السحري: نتحققوا إذا كان هاد الـ QR Code كاين في قائمة الـ Déplacés 🔥
+                           const isEcart = report.details.deplaces.some((d: any) => d.qr_code === scan.qr_code);
+
+                           return (
+                             <TableRow key={scan.id} className={isEcart ? "bg-orange-50/30" : ""}>
+                               <TableCell>
+                                 <div className="font-semibold text-sm">{scan.nom}</div>
+                                 <div className="text-[10px] text-slate-500 font-mono mt-0.5">{scan.qr_code}</div>
+                               </TableCell>
+                               <TableCell>
+                                 <div className="text-xs font-medium flex items-center gap-1">
+                                   <MapPin className="w-3 h-3 text-slate-400"/> {scan.emplacement_scanne}
+                                 </div>
+                                 {/* إظهار علامة الإيكار */}
+                                 {isEcart && <span className="text-[10px] text-orange-600 font-bold ml-4">Écart détecté</span>}
+                               </TableCell>
+                               <TableCell>
+                                 <Badge variant="outline" className="text-[10px] bg-white capitalize">
+                                   {scan.etat_trouve ? scan.etat_trouve.replace('_', ' ') : 'N/A'}
+                                 </Badge>
+                               </TableCell>
+                               <TableCell>
+                                 <div className="text-xs text-slate-700 flex items-center gap-1.5"><User className="w-3 h-3 text-blue-500"/> {scan.scanneur}</div>
+                               </TableCell>
+                               <TableCell className="text-right text-xs text-slate-500 flex items-center justify-end gap-1">
+                                 <Clock className="w-3 h-3"/> {scan.scanned_at}
+                               </TableCell>
+                             </TableRow>
+                           );
+                         })}
                        </TableBody>
                      </Table>
                    </div>
