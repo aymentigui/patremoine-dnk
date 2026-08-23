@@ -117,7 +117,7 @@ export default function InventorySessionPage() {
       await api.post("/inventory/scan/submit", {
         qr_code: qrScanned,
         commission_id: commissionId,
-        emplacement_id: emplacementId,
+        scanned_location_id: emplacementId,
         etat_trouve: etatTrouve
       });
       toast.success("Article inventorié avec succès !");
