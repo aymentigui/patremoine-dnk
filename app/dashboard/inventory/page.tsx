@@ -70,7 +70,9 @@ export default function InventoryCampaignsPage() {
     // 🔹 حماية الـ API 🔹
     if (!hasPermission(PERMISSIONS.VIEW)) return;
 
-    api.get("/organigramme/tree").then(res => setParcs(res.data.data.data || []));
+    api.get("/organigramme/tree").then(res => {
+      console.log(res);
+      setParcs(res.data.data.data || [])});
     api.get("/users?per_page=500").then(res => setUsers(res.data.data.data || [])); // جلب الموظفين باش نديروهم في اللجان
   }, [hasPermission]);
 
