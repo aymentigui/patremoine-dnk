@@ -8,7 +8,8 @@ import {
   LayoutDashboard, Users, Building2, Bus, 
   Settings, Package, FileText, ClipboardList, 
   Droplet, Home, Trash2, 
-  Shield
+  Shield,
+  Settings2
 } from "lucide-react";
 
 export function Sidebar() {
@@ -88,6 +89,12 @@ export function Sidebar() {
       href: "/dashboard/reforms",
       icon: Trash2,
       show: hasPermission("voir_reforme") || hasPermission("proposer_reforme"),
+    },
+     {
+      title: "Paramètres",
+      href: "/dashboard/settings",
+      icon: Settings2,
+      show: hasPermission("ADMIN"),
     },
   ];
 
