@@ -39,12 +39,16 @@ export default function ArticlesTab() {
   // Data States
   const [data, setData] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  
+  // 🔥 زدنا State نتاع قائمة الأسماء المعتمدة (Nomenclatures) باش نبعثوها للـ Modal
+  const [nomenclatures, setNomenclatures] = useState<any[]>([]); 
+
   const [loading, setLoading] = useState(true);
   
   // Pagination & Filters States
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [subCategoryFilter, setSubCategoryFilter] = useState("all"); // 👈 فلتر الـ Sous-catégorie
+  const [subCategoryFilter, setSubCategoryFilter] = useState("all"); 
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -60,10 +64,16 @@ export default function ArticlesTab() {
   
   const [importType, setImportType] = useState<'catalog' | 'items'>('catalog');
 
-  // 1. Fetch Categories for Filter (avec sous-catégories)
+  // 1. Fetch Categories & Nomenclatures (الأسماء المعتمدة)
   useEffect(() => {
     if (!hasPermission(PERMISSIONS.MANAGE_ARTICLES)) return;
+    
+    // نجيبو الـ Categories
     api.get("/categories?per_page=100").then(res => setCategories(res.data.data?.data || res.data.data || []));
+    
+    // 🔥 نجيبو الأسماء المعتمدة باش نبعثوها لـ ArticleFormModal
+    api.get("/articles/nomenclatures").then(res => setNomenclatures(res.data.data || []));
+    
   }, [hasPermission]);
 
   // 2. Fetch Articles (With Pagination & Filters)
@@ -77,7 +87,7 @@ export default function ArticlesTab() {
       setLoading(true);
       const params: any = { search, page, per_page: 12 };
       if (categoryFilter !== "all") params.category_id = categoryFilter;
-      if (subCategoryFilter !== "all") params.sous_categorie_id = subCategoryFilter; // 👈 نبعثو للباكاند
+      if (subCategoryFilter !== "all") params.sous_categorie_id = subCategoryFilter; 
 
       const res = await api.get("/articles", { params });
       
@@ -96,7 +106,7 @@ export default function ArticlesTab() {
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter, subCategoryFilter, page, hasPermission]); // 👈 ضفنا subCategoryFilter للـ dependencies
+  }, [search, categoryFilter, subCategoryFilter, page, hasPermission]); 
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -116,7 +126,7 @@ export default function ArticlesTab() {
       else {
         if (search) params.search = search;
         if (categoryFilter !== "all") params.category_id = categoryFilter;
-        if (subCategoryFilter !== "all") params.sous_categorie_id = subCategoryFilter; // 👈 نبعثوها في الـ Export
+        if (subCategoryFilter !== "all") params.sous_categorie_id = subCategoryFilter; 
       }
 
       const res = await api.get("/articles/export", { params, responseType: 'blob' });
@@ -229,7 +239,7 @@ export default function ArticlesTab() {
               </DropdownMenu>
 
               <Button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm">
-                <Plus className="w-4 h-4 mr-2" /> Nouvelle Entrée
+                <Plus className="w-4 h-4 mr-2" /> Nouvelle Réception
               </Button>
             </>
           )}
@@ -242,7 +252,7 @@ export default function ArticlesTab() {
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Rechercher (Nom ou N° Facture)..." 
+              placeholder="Rechercher (Nom de l'article ou Nom Facture)..." 
               value={search} 
               onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
               className="pl-9 bg-white border-slate-200 focus-visible:ring-indigo-500/30 rounded-lg shadow-sm" 
@@ -254,7 +264,7 @@ export default function ArticlesTab() {
               value={categoryFilter} 
               onValueChange={(val) => {
                 setCategoryFilter(val ?? "all");
-                setSubCategoryFilter("all"); // 👈 Reset Sous-catégorie كي يبدل הـ Catégorie
+                setSubCategoryFilter("all"); 
                 setPage(1);
               }}
             >
@@ -268,7 +278,7 @@ export default function ArticlesTab() {
             </Select>
           </div>
 
-          {/* 👈 فلتر הـ Sous-catégorie (يظهر غير إذا ختار Category) */}
+          {/* فلتر الـ Sous-catégorie */}
           {categoryFilter !== "all" && (
             <div className="w-full sm:w-64">
               <Select 
@@ -298,7 +308,7 @@ export default function ArticlesTab() {
               <TableHead className="w-12 pl-4"><Checkbox checked={data.length > 0 && selectedIds.length === data.length} onCheckedChange={handleSelectAll} className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600" /></TableHead>
               <TableHead className="font-semibold text-slate-600">Désignation (Nom de l'Article)</TableHead>
               <TableHead className="font-semibold text-slate-600">Catégorie</TableHead>
-              <TableHead className="font-semibold text-slate-600">Sous-Catégorie</TableHead> {/* 👈 زدنا هادي */}
+              <TableHead className="font-semibold text-slate-600">Sous-Catégorie</TableHead> 
               <TableHead className="text-center font-semibold text-slate-600">Quantité Globale</TableHead>
               <TableHead className="text-right font-semibold text-slate-600">Valeur Globale</TableHead>
               <TableHead className="text-right font-semibold text-slate-600 pr-6">Action</TableHead>
@@ -312,10 +322,9 @@ export default function ArticlesTab() {
                 <TableRow key={art.id} className={`group ${selectedIds.includes(art.id) ? "bg-indigo-50/50" : "hover:bg-slate-50/50"}`}>
                   <TableCell className="pl-4"><Checkbox checked={selectedIds.includes(art.id)} onCheckedChange={(checked) => handleSelectItem(art.id, checked as boolean)} className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600" /></TableCell>
                   <TableCell className="font-medium text-slate-900">{art.nom}</TableCell>
-                  <TableCell><span className="text-sm text-slate-600">{art.category_nom || "—"}</span></TableCell>
+                  <TableCell><span className="text-sm text-slate-600">{art.category?.nom || "—"}</span></TableCell>
                   
-                  {/* 👈 نافيشيو הـ Sous-catégorie */}
-                  <TableCell><span className="text-sm text-slate-500">{art.sub_category_nom || "—"}</span></TableCell>
+                  <TableCell><span className="text-sm text-slate-500">{art.subCategory?.nom || "—"}</span></TableCell>
                   
                   <TableCell className="text-center">
                     <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold">{art.quantite_globale}</span>
@@ -347,17 +356,15 @@ export default function ArticlesTab() {
       {/* MODALS */}
       {hasPermission(PERMISSIONS.MANAGE_ARTICLES) && (
         <>
-          {/* 👈 هنا بعثنا הـ categories كاملين كـ prop للـ Modal باش يقدر يخدم بيهم */}
+          {/* 🔥 نبعثو Nomenclatures للـ Modal باش يخير منهم الخدام 🔥 */}
           <ArticleFormModal 
             isOpen={isModalOpen} 
             onClose={() => setIsModalOpen(false)} 
             onSuccess={fetchArticles} 
-            categories={categories} 
+            nomenclatures={nomenclatures} 
           />
 
-          {/* ... باقي الـ Import Modal خليتو كيما راهو */}
           <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-            {/* الكود القديم تاع الـ Import */}
             <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-white shadow-2xl border-0 rounded-2xl">
               <DialogHeader className="px-6 py-5 border-b bg-slate-50/50">
                 <div className="flex items-center justify-between">

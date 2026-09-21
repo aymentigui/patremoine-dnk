@@ -8,17 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Box, Tag, QrCode, FileSpreadsheet } from "lucide-react";
-import * as XLSX from "xlsx"; // 🔹 زدنا استدعاء مكتبة الإكسيل هنا
+import * as XLSX from "xlsx"; 
 
 interface ArticleFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  // 👈 زدنا هادي باش نستقبلو الأسماء من ArticlesTab
+  nomenclatures?: any[]; 
 }
 
 const initialFormData = {
-  category_id: "",
-  nom: "",
+  article_id: "", // 👈 ولات article_id في بلاصة nom و category_id
+  nom_facture: "", // 👈 زدنا اسم الفاتورة
   numero_facture: "",
   date_facture: "",
   quantite_globale: 1,
@@ -28,29 +30,19 @@ const initialFormData = {
   modele: "",
 };
 
-export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModalProps) {
+export function ArticleFormModal({ isOpen, onClose, onSuccess, nomenclatures = [] }: ArticleFormModalProps) {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
   const [emplacements, setEmplacements] = useState<any[]>([]);
-  const [existingNames, setExistingNames] = useState<string[]>([]);
 
   const [formData, setFormData] = useState(initialFormData);
 
-  // 🔹 States pour la gestion des QR Codes 🔹
+  // States pour la gestion des QR Codes
   const [qrGenerationMode, setQrGenerationMode] = useState<"auto" | "manual">("auto");
   const [manualQRCodesText, setManualQRCodesText] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
-
-    api.get("/categories?per_page=500").then(res => setCategories(res.data?.data?.data || res.data?.data || []));
     api.get("/emplacements?per_page=500").then(res => setEmplacements(res.data?.data?.data || res.data?.data || []));
-    
-    api.get("/articles?per_page=500").then(res => {
-      const articles = res.data?.data || [];
-      const names = Array.from(new Set(articles.map((a: any) => a.nom)));
-      setExistingNames(names as string[]);
-    });
   }, [isOpen]);
 
   const handleClose = () => {
@@ -67,7 +59,6 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
       .filter(code => code !== ""); 
   };
 
-  // 🔥 دالة قراءة ملف الإكسيل واستخراج الأكواد 🔥
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -77,21 +68,18 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
       try {
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0]; // نقراو الورقة الأولى
+        const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
-        // تحويل محتوى الورقة إلى مصفوفة (Array of arrays)
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        // نلمو ڨاع الخلايا اللي ماشي فارغة
         const extractedCodes = jsonData
-          .flat() // نرجعوها مصفوفة وحدة
-          .map(val => String(val).trim()) // نحو الفراغات ونردوها String
-          .filter(val => val !== ""); // نحو اللي فارغين
+          .flat() 
+          .map(val => String(val).trim()) 
+          .filter(val => val !== ""); 
 
         if (extractedCodes.length > 0) {
           const newText = extractedCodes.join("\n");
-          // إذا كان كاين أكواد من قبل، نزيدو عليهم، وإذا لا نحطو الجدد
           setManualQRCodesText(prev => prev ? prev + "\n" + newText : newText);
           toast.success(`${extractedCodes.length} codes récupérés avec succès !`);
         } else {
@@ -102,15 +90,13 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
       }
     };
     reader.readAsArrayBuffer(file);
-    
-    // ريزيتي الحقل باش يقدر المستعمل يطلع نفس الفيشي مرة أخرى يلا حب
     e.target.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.category_id || !formData.nom || !formData.emplacement_id) {
-      return toast.error("Veuillez remplir les champs obligatoires.");
+    if (!formData.article_id || !formData.nom_facture || !formData.emplacement_id) {
+      return toast.error("Veuillez remplir les champs obligatoires (Article, Nom Facture, Emplacement).");
     }
 
     const parsedQRCodes = getParsedQRCodes();
@@ -152,6 +138,9 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
 
   const parsedLength = getParsedQRCodes().length;
 
+  // 💡 نجيبو הـ Catégorie والـ Sous-Catégorie باش نافيشيوهم للخدام كـ معلومات
+  const selectedNomenclature = nomenclatures.find(n => n.id.toString() === formData.article_id);
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-white shadow-2xl border-0 rounded-2xl">
@@ -161,9 +150,9 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
               <Box className="w-5 h-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-semibold text-slate-800">Nouvelle Entrée</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-slate-800">Nouvelle Réception</DialogTitle>
               <DialogDescription className="mt-1 text-sm text-slate-500">
-                Ajouter une facture et générer les articles
+                Saisir les détails de la facture et générer les articles
               </DialogDescription>
             </div>
           </div>
@@ -172,55 +161,41 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            {/* 1. Catégorie */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Catégorie <span className="text-red-500">*</span></label>
-              <Select value={formData.category_id} onValueChange={(val) => setFormData({ ...formData, category_id: val || "" })}>
-                <SelectTrigger className="bg-white"><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (<SelectItem key={cat.id} value={cat.id.toString()}>{cat.nom}</SelectItem>))}
+            {/* 1. Article (Nomenclature) */}
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-sm font-semibold text-slate-700">Article (Nomenclature) <span className="text-red-500">*</span></label>
+              <Select value={formData.article_id} onValueChange={(val) => setFormData({ ...formData, article_id: val || "" })}>
+                <SelectTrigger className="bg-white"><SelectValue placeholder="Sélectionner l'article dans le catalogue..." /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {nomenclatures.map((nom) => (
+                    <SelectItem key={nom.id} value={nom.id.toString()}>
+                      {nom.nom} <span className="text-slate-400 text-xs ml-2">({nom.category?.nom})</span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              
+              {/* عرض التصنيف والتصنيف الفرعي تلقائياً */}
+              {selectedNomenclature && (
+                <p className="text-[11px] text-slate-500 font-medium bg-slate-50 p-1.5 rounded border border-slate-100 mt-1">
+                  Catégorie: <span className="text-slate-700">{selectedNomenclature.category?.nom || "—"}</span> 
+                  {selectedNomenclature.sub_category?.nom && ` > Sous-catégorie: ${selectedNomenclature.sub_category.nom}`}
+                </p>
+              )}
             </div>
 
-            {/* 2. Nom avec Datalist */}
+            {/* 2. Nom Facture */}
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Désignation (Nom) <span className="text-red-500">*</span></label>
+              <label className="text-sm font-semibold text-slate-700">Nom Facture <span className="text-red-500">*</span></label>
               <Input 
-                list="existing-articles" 
-                placeholder="Ex: Micro Ordinateur HP..." 
-                value={formData.nom} 
-                onChange={(e) => setFormData({ ...formData, nom: e.target.value })} 
+                placeholder="Nom du fournisseur ou facture..." 
+                value={formData.nom_facture} 
+                onChange={(e) => setFormData({ ...formData, nom_facture: e.target.value })} 
                 className="bg-white"
               />
-              <datalist id="existing-articles">
-                {existingNames.map((name, idx) => (
-                  <option key={idx} value={name} />
-                ))}
-              </datalist>
             </div>
 
-            {/* 3. Marque */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Marque <span className="text-slate-400 font-normal">(Optionnel)</span></label>
-              <Input 
-                placeholder="Ex: HP, Canon, Michelin..." 
-                value={formData.marque} 
-                onChange={(e) => setFormData({ ...formData, marque: e.target.value })} 
-              />
-            </div>
-
-            {/* 4. Modèle */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Modèle <span className="text-slate-400 font-normal">(Optionnel)</span></label>
-              <Input 
-                placeholder="Ex: ProBook 450 G8..." 
-                value={formData.modele} 
-                onChange={(e) => setFormData({ ...formData, modele: e.target.value })} 
-              />
-            </div>
-
-            {/* 5. Numéro Facture */}
+            {/* 3. N° Facture */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-slate-700">N° Facture <span className="text-slate-400 font-normal">(Optionnel)</span></label>
               <Input 
@@ -230,7 +205,7 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
               />
             </div>
 
-            {/* 6. Date Facture */}
+            {/* 4. Date Facture */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-slate-700">Date Achat</label>
               <Input 
@@ -240,7 +215,7 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
               />
             </div>
 
-            {/* 7. Emplacement Initiale */}
+            {/* 5. Emplacement Initiale */}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-slate-700">Stockage Initial <span className="text-red-500">*</span></label>
               <Select value={formData.emplacement_id} onValueChange={(val) => setFormData({ ...formData, emplacement_id: val || "" })}>
@@ -249,6 +224,26 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
                   {emplacements.map((emp) => (<SelectItem key={emp.id} value={emp.id.toString()}>{emp.nom}</SelectItem>))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* 6. Marque */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Marque <span className="text-slate-400 font-normal">(Optionnel)</span></label>
+              <Input 
+                placeholder="Ex: HP, Canon, Michelin..." 
+                value={formData.marque} 
+                onChange={(e) => setFormData({ ...formData, marque: e.target.value })} 
+              />
+            </div>
+
+            {/* 7. Modèle */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Modèle <span className="text-slate-400 font-normal">(Optionnel)</span></label>
+              <Input 
+                placeholder="Ex: ProBook 450 G8..." 
+                value={formData.modele} 
+                onChange={(e) => setFormData({ ...formData, modele: e.target.value })} 
+              />
             </div>
 
             {/* 8. Quantité Globale */}
@@ -274,7 +269,7 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
               </p>
             </div>
 
-            {/* 🔥 قسم أكواد الـ QR الجديد 🔥 */}
+            {/* 🔥 قسم أكواد الـ QR 🔥 */}
             <div className="col-span-1 md:col-span-2 pt-4 border-t border-slate-100 space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -309,14 +304,13 @@ export function ArticleFormModal({ isOpen, onClose, onSuccess }: ArticleFormModa
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                     <label className="text-sm font-semibold text-slate-700">
-                      Codes QR <span className="text-xs text-slate-400 font-normal">(1 par ligne ou séparés par virgule)</span> <span className="text-red-500">*</span>
+                      Codes QR <span className="text-xs text-slate-400 font-normal">(1 par ligne)</span> <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold px-2 py-1 rounded ${parsedLength === formData.quantite_globale ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         {parsedLength} / {formData.quantite_globale}
                       </span>
                       
-                      {/* 🔥 زر رفع الإكسيل لاستخراج الأكواد 🔥 */}
                       <label className="cursor-pointer bg-white hover:bg-slate-50 text-indigo-600 px-2 py-1 rounded text-xs font-bold border border-indigo-200 flex items-center gap-1 transition-colors shadow-sm">
                         <FileSpreadsheet className="w-3 h-3" /> Importer Excel
                         <input 
