@@ -322,9 +322,9 @@ export default function ArticlesTab() {
                 <TableRow key={art.id} className={`group ${selectedIds.includes(art.id) ? "bg-indigo-50/50" : "hover:bg-slate-50/50"}`}>
                   <TableCell className="pl-4"><Checkbox checked={selectedIds.includes(art.id)} onCheckedChange={(checked) => handleSelectItem(art.id, checked as boolean)} className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600" /></TableCell>
                   <TableCell className="font-medium text-slate-900">{art.nom}</TableCell>
-                  <TableCell><span className="text-sm text-slate-600">{art.category?.nom || "—"}</span></TableCell>
+                  <TableCell><span className="text-sm text-slate-600">{art.category_nom || "—"}</span></TableCell>
                   
-                  <TableCell><span className="text-sm text-slate-500">{art.subCategory?.nom || "—"}</span></TableCell>
+                  <TableCell><span className="text-sm text-slate-500">{art.sub_category_nom || "—"}</span></TableCell>
                   
                   <TableCell className="text-center">
                     <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold">{art.quantite_globale}</span>
