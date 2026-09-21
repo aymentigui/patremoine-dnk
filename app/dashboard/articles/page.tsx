@@ -17,7 +17,6 @@ export default function InventoryDashboard() {
 
   // 🔹 تعريف الـ Tabs مع ربط كل واحد بالصلاحية نتاعو من الـ API الأول 🔹
   const allTabs = [
-    { id: "categories", label: "Catégories", icon: Tags, permission: "gerer_articles" }, // 👈 زدنا Tab هنا
     { id: "catalogue", label: "Catalogue", icon: Box, permission: "gerer_articles" },
     { id: "items", label: "Articles (Items)", icon: List, permission: "voir_article_items" },
     { id: "transfers", label: "Transferts", icon: ArrowRightLeft, permission: "voir_transfers" },
