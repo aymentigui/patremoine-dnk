@@ -32,7 +32,7 @@ const PERMISSIONS = {
   TRANSFER: "ajouter_transfers", 
   HISTORY: "voir_article_items",
   EXPORT: "exporter_article_items",
-  EDIT: "gerer_articles" // 👈 زدنا هادي لأن التعديل محمي بهاد الصلاحية في الباكاند
+  EDIT: "gerer_articles" 
 };
 
 const formatMoney = (amount: number) => new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(amount);
@@ -80,7 +80,7 @@ export default function ArticleDetailsPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // 👈 حالة المودال نتاع التعديل
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
 
   // Form states
   const [newStatus, setNewStatus] = useState("");
@@ -88,8 +88,9 @@ export default function ArticleDetailsPage() {
   const [remarque, setRemarque] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  // 🔥 State نتاع التعديل (Edit) 🔥
+  // 🔥 State نتاع التعديل (Edit) 🔥 - زدنا فيها nom_facture
   const [editForm, setEditForm] = useState({
+    nom_facture: "", 
     marque: "",
     modele: "",
     numero_serie_fabricant: "",
@@ -265,14 +266,15 @@ export default function ArticleDetailsPage() {
     }
     if (type === 'history') { setIsHistoryModalOpen(true); fetchItemHistory(item.id); }
     
-    // 🔥 فتح مودال التعديل وتعبئة البيانات القديمة 🔥
+    // 🔥 فتح مودال التعديل وتعبئة البيانات القديمة 🔥 - رانا زدنا nom_facture هنا
     if (type === 'edit') {
       setEditForm({
+        nom_facture: item.nom_facture || "", 
         marque: item.marque || "",
         modele: item.modele || "",
         numero_serie_fabricant: item.numero_serie_fabricant || "",
         numero_facture: item.numero_facture || "",
-        date_facture: item.date_facture ? item.date_facture.split('T')[0] : "", // الفورماط نتاع input date
+        date_facture: item.date_facture ? item.date_facture.split('T')[0] : "", 
         valeur_unitaire: item.valeur_unitaire || 0,
       });
       setIsEditModalOpen(true);
@@ -283,6 +285,7 @@ export default function ArticleDetailsPage() {
     item.qr_code_reference?.toLowerCase().includes(search.toLowerCase()) ||
     item.numero_serie_fabricant?.toLowerCase().includes(search.toLowerCase()) ||
     item.marque?.toLowerCase().includes(search.toLowerCase()) ||
+    item.nom_facture?.toLowerCase().includes(search.toLowerCase()) || // زدنا الفلترة بـ nom_facture
     item.numero_facture?.toLowerCase().includes(search.toLowerCase())
   );
   
@@ -308,6 +311,7 @@ export default function ArticleDetailsPage() {
     if (selectedIds.length === 0) return toast.error("Veuillez sélectionner au moins un article.");
     
     const dataToExport = items.filter(item => selectedIds.includes(item.id)).map(item => ({
+      "Nom Facture": item.nom_facture || "-",
       "N° Facture": item.numero_facture || "-",
       "Date Facture": item.date_facture || "-",
       "Référence (Code)": item.qr_code_reference,
@@ -407,7 +411,7 @@ export default function ArticleDetailsPage() {
         <div className="relative w-full sm:w-96">
           <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
-            placeholder="Scanner ou chercher par QR, N° Série ou N° Facture..." 
+            placeholder="Scanner ou chercher par QR, N° Série ou Facture..." 
             value={search} onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-white border-slate-200 focus-visible:ring-indigo-500/30 rounded-lg shadow-sm h-11"
           />
@@ -456,7 +460,7 @@ export default function ArticleDetailsPage() {
                   onChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead className="font-semibold text-slate-600">N° Facture</TableHead>
+              <TableHead className="font-semibold text-slate-600">Nom & N° Facture</TableHead>
               <TableHead className="font-semibold text-slate-600">Référence (Code)</TableHead>
               <TableHead className="font-semibold text-slate-600">Marque & Modèle</TableHead>
               <TableHead className="font-semibold text-slate-600">N° Série</TableHead>
@@ -478,17 +482,19 @@ export default function ArticleDetailsPage() {
                     />
                   </TableCell>
                   
+                  {/* 🔥 زدنا عرض Nom Facture هنا باش يبان واضح 🔥 */}
                   <TableCell>
-                    {item.numero_facture ? (
-                      <div className="flex flex-col">
-                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold uppercase border border-slate-200">
-                          {item.numero_facture}
+                    <div className="flex flex-col gap-1">
+                      {item.nom_facture && <div className="text-[10px] text-slate-500 font-semibold uppercase">{item.nom_facture}</div>}
+                      {item.numero_facture ? (
+                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-bold uppercase border border-slate-200 w-max">
+                          F: {item.numero_facture}
                         </span>
-                        {item.date_facture && <span className="text-xs text-slate-400 mt-1">{new Date(item.date_facture).toLocaleDateString('fr-DZ')}</span>}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400 text-xs">—</span>
-                    )}
+                      ) : (
+                        <span className="text-slate-400 text-xs">—</span>
+                      )}
+                      {item.date_facture && <span className="text-[11px] font-mono text-slate-400">{new Date(item.date_facture).toLocaleDateString('fr-DZ')}</span>}
+                    </div>
                   </TableCell>
 
                   <TableCell>
@@ -534,11 +540,9 @@ export default function ArticleDetailsPage() {
                     </div>
                   </TableCell>
 
-                  {/* 🔹 الأزرار الفردية محمية بالصلاحيات 🔹 */}
                   <TableCell className="text-right pr-6 align-middle">
                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       
-                      {/* 🔥 زر التعديل (Edit) الجديد 🔥 */}
                       {hasPermission(PERMISSIONS.EDIT) && (
                         <Button variant="ghost" size="icon" onClick={() => openModal('edit', item)} title="Modifier l'article" className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
                           <Edit className="w-4 h-4" />
@@ -615,6 +619,13 @@ export default function ArticleDetailsPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateItem} className="px-6 py-5 space-y-4">
+            
+            {/* 👈 هادي خانة Nom Facture اللي كانت تخص في JSX */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">Nom Facture</label>
+              <Input value={editForm.nom_facture} onChange={e => setEditForm({...editForm, nom_facture: e.target.value})} placeholder="Nom du fournisseur ou de la facture" />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700">Marque</label>
