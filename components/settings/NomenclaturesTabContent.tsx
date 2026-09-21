@@ -37,10 +37,10 @@ export default function NomenclaturesTabContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nom || !categoryId) return toast.error("Le nom et la catégorie sont obligatoires.");
+    if (!nom || !categoryId || !subCategoryId) return toast.error("Le nom et la catégorie sont obligatoires.");
     setSubmitting(true);
     try {
-      await api.post("/articles/nomenclature", { nom, category_id: categoryId, sous_categorie_id: subCategoryId || null });
+      await api.post("/articles/nomenclature", { nom, category_id: categoryId, sous_categorie_id: subCategoryId  });
       toast.success("Nomenclature ajoutée au catalogue !");
       setNom(""); setCategoryId(""); setSubCategoryId("");
       fetchData();
@@ -95,18 +95,20 @@ export default function NomenclaturesTabContent() {
               <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nom}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          {selectedCatObj?.sub_categories?.length > 0 && (
-            <div>
-              <label className="text-sm font-semibold text-slate-700">Sous-catégorie</label>
-              <Select value={subCategoryId} onValueChange={setSubCategoryId}>
-                <SelectTrigger className="bg-white"><SelectValue placeholder="Optionnel..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucune</SelectItem>
-                  {selectedCatObj.sub_categories.map((sub: any) => <SelectItem key={sub.id} value={sub.id.toString()}>{sub.nom}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+         <div>
+            <label className="text-sm font-semibold text-slate-700">Sous-catégorie *</label>
+            <Select value={subCategoryId} onValueChange={setSubCategoryId}>
+              <SelectTrigger className="bg-white"><SelectValue placeholder="Sélectionner la sous-catégorie..." /></SelectTrigger>
+              <SelectContent>
+                {selectedCatObj?.sub_categories?.map((sub: any) => (
+                  <SelectItem key={sub.id} value={sub.id.toString()}>{sub.nom}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(!selectedCatObj?.sub_categories || selectedCatObj.sub_categories.length === 0) && categoryId !== "" && (
+               <p className="text-xs text-red-500 mt-1">⚠️ Cette catégorie n'a pas de sous-catégories. Créez-en une d'abord.</p>
+            )}
+          </div>
           <div><label className="text-sm font-semibold text-slate-700">Désignation Officielle *</label><Input value={nom} onChange={e => setNom(e.target.value.toUpperCase())} placeholder="Ex: MICRO ORDINATEUR HP..." /></div>
           
           <Button type="submit" disabled={submitting} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
