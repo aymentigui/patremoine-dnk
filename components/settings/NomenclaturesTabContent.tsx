@@ -29,6 +29,7 @@ export default function NomenclaturesTabContent() {
       ]);
       setData(nomRes.data?.data || []);
       setCategories(catRes.data?.data || []);
+      console.log(catRes.data?.data)
     } catch (error) { toast.error("Erreur de chargement."); }
     finally { setLoading(false); }
   };
