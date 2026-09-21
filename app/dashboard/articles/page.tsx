@@ -6,7 +6,6 @@ import { Box, List, ArrowRightLeft, History, Tags } from "lucide-react"; // 👈
 import { useAuthStore } from "@/store/useAuthStore";
 
 // Components (Tabs)
-import CategoriesTab from "./CategoriesTab"; // 👈 زدنا تاب الكاتيقوري والـ SubCategory
 import ArticlesTab from "./ArticlesTab"; 
 import ArticleItemsTab from "./ArticlesItemsTab"; 
 import TransfersTab from "./TransfersTab"; 
@@ -76,7 +75,6 @@ export default function InventoryDashboard() {
 
       {/* 🔹 TABS CONTENT */}
       <div className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        {activeTab === "categories" && <CategoriesTab />}
         
         {activeTab === "catalogue" && <ArticlesTab />}
         
