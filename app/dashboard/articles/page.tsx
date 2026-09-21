@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Box, List, ArrowRightLeft, History } from "lucide-react";
+import { Box, List, ArrowRightLeft, History, Tags } from "lucide-react"; // 👈 زدنا أيقونة Tags
 // 🔹 استدعاء الـ Store لي تفاهمنا عليه 🔹
 import { useAuthStore } from "@/store/useAuthStore";
 
 // Components (Tabs)
+import CategoriesTab from "./CategoriesTab"; // 👈 زدنا تاب الكاتيقوري والـ SubCategory
 import ArticlesTab from "./ArticlesTab"; 
 import ArticleItemsTab from "./ArticlesItemsTab"; 
 import TransfersTab from "./TransfersTab"; 
@@ -17,6 +18,7 @@ export default function InventoryDashboard() {
 
   // 🔹 تعريف الـ Tabs مع ربط كل واحد بالصلاحية نتاعو من الـ API الأول 🔹
   const allTabs = [
+    { id: "categories", label: "Catégories", icon: Tags, permission: "gerer_articles" }, // 👈 زدنا Tab هنا
     { id: "catalogue", label: "Catalogue", icon: Box, permission: "gerer_articles" },
     { id: "items", label: "Articles (Items)", icon: List, permission: "voir_article_items" },
     { id: "transfers", label: "Transferts", icon: ArrowRightLeft, permission: "voir_transfers" },
@@ -74,6 +76,8 @@ export default function InventoryDashboard() {
 
       {/* 🔹 TABS CONTENT */}
       <div className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {activeTab === "categories" && <CategoriesTab />}
+        
         {activeTab === "catalogue" && <ArticlesTab />}
         
         {activeTab === "items" && <ArticleItemsTab />}

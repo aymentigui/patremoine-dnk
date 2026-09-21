@@ -21,18 +21,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // Icons
-import { Loader2, Search, FileSpreadsheet, List, SlidersHorizontal, X, ChevronLeft, ChevronRight, QrCode, Building2, MapPin, Activity, Settings2, User, ArrowRightLeft, History, Printer, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Search, FileSpreadsheet, List, SlidersHorizontal, X, ChevronLeft, ChevronRight, QrCode, Building2, MapPin, Activity, Settings2, User, ArrowRightLeft, History, Printer, Clock, CheckCircle2, XCircle, Edit } from "lucide-react";
 
 // ==========================================
-// 🔐 إدارة الصلاحيات (PERMISSIONS) - مطابقة للباك اند
+// 🔐 إدارة الصلاحيات (PERMISSIONS) 
 // ==========================================
 const PERMISSIONS = {
   VIEW: "voir_article_items",
   CHANGE_STATUS: "modifier_statut_article_items",
   ASSIGN: "affecter_employe_article_items",
-  TRANSFER: "ajouter_transfers", // 🔹 تم التصحيح حسب الباك اند 🔹
-  HISTORY: "voir_article_items", // History داخل في نفس صلاحية الـ View
-  EXPORT: "exporter_article_items"
+  TRANSFER: "ajouter_transfers", 
+  HISTORY: "voir_article_items",
+  EXPORT: "exporter_article_items",
+  EDIT: "gerer_articles" // 👈 زدناها باش نقابلو الباكاند
 };
 
 // Format DZD
@@ -65,7 +66,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function ArticleItemsTab() {
-  // 🔹 جلب دالة التحقق من الصلاحيات من الـ Store 🔹
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
   // Data States
@@ -91,11 +91,12 @@ export default function ArticleItemsTab() {
   const [scanBuffer, setScanBuffer] = useState("");
 
   // Modals States
-  const [selectedItem, setSelectedItem] = useState<any>(null); // إذا كان null، رانا في الـ Bulk Action
+  const [selectedItem, setSelectedItem] = useState<any>(null); 
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // 👈 مودال التعديل
 
   // Form States
   const [newStatus, setNewStatus] = useState("");
@@ -104,6 +105,17 @@ export default function ArticleItemsTab() {
   const [actionLoading, setActionLoading] = useState(false);
   const [transferParcId, setTransferParcId] = useState<string>("all");
   const [newEmplacementId, setNewEmplacementId] = useState<string>("");
+
+  // 🔥 Edit Form State 🔥
+  const [editForm, setEditForm] = useState({
+    nom_facture: "",
+    marque: "",
+    modele: "",
+    numero_serie_fabricant: "",
+    numero_facture: "",
+    date_facture: "",
+    valeur_unitaire: 0,
+  });
 
   // History States
   const [itemHistory, setItemHistory] = useState<any[]>([]);
@@ -115,6 +127,7 @@ export default function ArticleItemsTab() {
     match_type: "contains",
     nom_article: "",
     qr_code_reference: "",
+    nom_facture: "", // 👈 فلتر اسم الفاتورة الجديد
     numero_facture: "",
     numero_serie_fabricant: "",
     marque: "",
@@ -131,7 +144,7 @@ export default function ArticleItemsTab() {
 
   // Fetch Auxiliary Data
   useEffect(() => {
-    if (!hasPermission(PERMISSIONS.VIEW)) return; // حماية إضافية للطلبات
+    if (!hasPermission(PERMISSIONS.VIEW)) return; 
     
     api.get("/emplacements?per_page=500").then(res => setEmplacements(res.data.data?.data || res.data.data || []));
     api.get("/organigramme/tree").then(res => setParcs(res.data.data || [])).catch(() => {});
@@ -171,13 +184,11 @@ export default function ArticleItemsTab() {
     }
   }, [page, filters, hasPermission]);
 
-  // Debounce API calls for typing
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => { fetchItems(); }, 600);
     return () => clearTimeout(delayDebounceFn);
   }, [fetchItems]);
 
-  // Handlers
   const handleFilterChange = (key: string, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setPage(1);
@@ -195,7 +206,7 @@ export default function ArticleItemsTab() {
 
   const clearFilters = () => {
     setFilters({
-      match_type: "contains", nom_article: "", qr_code_reference: "", numero_facture: "", numero_serie_fabricant: "",
+      match_type: "contains", nom_article: "", qr_code_reference: "", nom_facture: "", numero_facture: "", numero_serie_fabricant: "",
       marque: "", modele: "", status: [], parc_id: [], emplacement_id: [], valeur_min: "", valeur_max: "", date_debut: "", date_fin: "", is_labeled: ""
     });
     setPage(1);
@@ -204,7 +215,6 @@ export default function ArticleItemsTab() {
   const handleSelectAll = (checked: boolean) => setSelectedIds(checked ? data.map(item => item.id) : []);
   const handleSelectItem = (id: number, checked: boolean) => setSelectedIds(prev => checked ? [...prev, id] : prev.filter(item => item !== id));
 
-  // 🚀 ميزة السكانير الأوتوماتيكي 🚀
   const handleScanInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -212,22 +222,47 @@ export default function ArticleItemsTab() {
         const currentQR = filters.qr_code_reference;
         const newValue = currentQR ? `${currentQR},${scanBuffer.trim()}` : scanBuffer.trim();
         handleFilterChange("qr_code_reference", newValue);
-        setScanBuffer(""); // نفارغو الخانة للسكان الجاي
+        setScanBuffer(""); 
       }
     }
   };
 
-  // --- ACTIONS GLOBALES (BULK) & INDIVIDUELLES ---
-  const openModal = (type: 'status' | 'assign' | 'transfer' | 'history', item: any = null) => {
+  const openModal = (type: 'status' | 'assign' | 'transfer' | 'history' | 'edit', item: any = null) => {
     setSelectedItem(item);
     setRemarque("");
     if (type === 'status') { setNewStatus(item ? item.status : ""); setIsStatusModalOpen(true); }
     if (type === 'assign') { setNewEmployeeId(item?.employee_id?.toString() || ""); setIsAssignModalOpen(true); }
     if (type === 'transfer') { setTransferParcId("all"); setNewEmplacementId(""); setIsTransferModalOpen(true); }
     if (type === 'history') { setIsHistoryModalOpen(true); if (item) fetchItemHistory(item.id); }
+    
+    // 🔥 فتح مودال التعديل وتعبئة البيانات القديمة 🔥
+    if (type === 'edit' && item) {
+      setEditForm({
+        nom_facture: item.nom_facture || "",
+        marque: item.marque || "",
+        modele: item.modele || "",
+        numero_serie_fabricant: item.numero_serie_fabricant || "",
+        numero_facture: item.numero_facture || "",
+        date_facture: item.date_facture ? item.date_facture.split('T')[0] : "",
+        valeur_unitaire: item.valeur_unitaire || 0,
+      });
+      setIsEditModalOpen(true);
+    }
   };
 
-  // ⚙️ تنفيذ العمليات على عنصر واحد أو مجموعة عناصر
+  // --- API ACTIONS ---
+  const handleUpdateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setActionLoading(true);
+      await api.put(`/article-items/${selectedItem.id}`, editForm);
+      toast.success("Pièce mise à jour avec succès !");
+      setIsEditModalOpen(false);
+      fetchItems();
+    } catch (error: any) { toast.error("Erreur de mise à jour."); } 
+    finally { setActionLoading(false); }
+  };
+
   const handleChangeStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStatus) return toast.error("Veuillez sélectionner un statut.");
@@ -288,7 +323,6 @@ export default function ArticleItemsTab() {
     h.remarque?.toLowerCase().includes(historySearch.toLowerCase())
   );
 
-  // EXPORT LOGIC
   const handleExport = async () => {
     try {
       const toastId = toast.loading("Génération du fichier Excel...");
@@ -339,7 +373,6 @@ export default function ArticleItemsTab() {
     setTimeout(() => { document.body.removeChild(iframe); }, 2000);
   };
 
-  // 🛡️ حماية الصفحة كاملة
   if (!hasPermission(PERMISSIONS.VIEW)) return <div className="p-8 text-center text-slate-500">🚫 Accès refusé. Vous n'avez pas la permission de voir cette page.</div>;
 
   return (
@@ -358,7 +391,6 @@ export default function ArticleItemsTab() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          {/* 🚀 السكاني السريع 🚀 */}
           <div className="relative">
             <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500" />
             <Input 
@@ -374,7 +406,6 @@ export default function ArticleItemsTab() {
             <SlidersHorizontal className="w-4 h-4 mr-2" /> Filtres Avancés
           </Button>
           
-          {/* 🔹 تعويض الـ Can بـ hasPermission للتوحيد 🔹 */}
           {hasPermission(PERMISSIONS.EXPORT) && (
             <Button onClick={handleExport} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm">
               <FileSpreadsheet className="w-4 h-4 mr-2" /> Exporter Excel
@@ -469,10 +500,11 @@ export default function ArticleItemsTab() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600">N° Facture / N° Série</label>
+              <label className="text-xs font-semibold text-slate-600">Nom / N° Facture</label>
               <div className="flex gap-2">
-                <Input placeholder="Facture" value={filters.numero_facture} onChange={(e) => handleFilterChange("numero_facture", e.target.value)} className="h-9 text-sm w-1/2" />
-                <Input placeholder="Série" value={filters.numero_serie_fabricant} onChange={(e) => handleFilterChange("numero_serie_fabricant", e.target.value)} className="h-9 text-sm w-1/2" />
+                {/* 👈 فلتر Nom Facture */}
+                <Input placeholder="Nom" value={filters.nom_facture} onChange={(e) => handleFilterChange("nom_facture", e.target.value)} className="h-9 text-sm w-1/2" />
+                <Input placeholder="N° Facture" value={filters.numero_facture} onChange={(e) => handleFilterChange("numero_facture", e.target.value)} className="h-9 text-sm w-1/2" />
               </div>
             </div>
 
@@ -577,7 +609,6 @@ export default function ArticleItemsTab() {
               </div>
             </div>
 
-            
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-600">Article étiqueté ?</label>
               <Select value={filters.is_labeled} onValueChange={(val) => handleFilterChange("is_labeled", val)}>
@@ -591,7 +622,6 @@ export default function ArticleItemsTab() {
                 </SelectContent>
               </Select>
             </div>
-
           </div>
         </div>
       )}
@@ -614,7 +644,7 @@ export default function ArticleItemsTab() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></TableCell></TableRow>
               ) : data.length > 0 ? (
                 data.map((item) => (
                   <TableRow key={item.id} className={`group ${selectedIds.includes(item.id) ? "bg-indigo-50/50" : "hover:bg-slate-50/50"}`}>
@@ -626,8 +656,12 @@ export default function ArticleItemsTab() {
                     </TableCell>
 
                     <TableCell>
-                      {item.numero_facture ? <div className="text-xs font-semibold text-slate-700 bg-slate-100 inline-block px-1.5 py-0.5 rounded border mb-1">F: {item.numero_facture}</div> : null}
-                      <div className="text-[11px] text-slate-500">SN: {item.numero_serie_fabricant || "—"}</div>
+                      <div className="flex flex-col gap-1">
+                        {/* 👈 عرض Nom Facture */}
+                        {item.nom_facture && <div className="text-[10px] text-slate-500 font-semibold uppercase">{item.nom_facture}</div>}
+                        {item.numero_facture ? <div className="text-xs font-semibold text-slate-700 bg-slate-100 inline-block px-1.5 py-0.5 rounded border mb-1 w-max">F: {item.numero_facture}</div> : null}
+                        <div className="text-[11px] text-slate-500">SN: {item.numero_serie_fabricant || "—"}</div>
+                      </div>
                     </TableCell>
 
                     <TableCell>
@@ -652,6 +686,14 @@ export default function ArticleItemsTab() {
                     {/* 🔹 الأزرار الفردية محمية بالصلاحيات 🔹 */}
                     <TableCell className="text-right pr-6 align-middle">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        
+                        {/* 🔥 زر التعديل (Edit) الجديد 🔥 */}
+                        {hasPermission(PERMISSIONS.EDIT) && (
+                          <Button variant="ghost" size="icon" onClick={() => openModal('edit', item)} title="Modifier l'article" className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        )}
+
                         {hasPermission(PERMISSIONS.HISTORY) && <Button variant="ghost" size="icon" onClick={() => openModal('history', item)} className="text-slate-400 hover:text-purple-600"><History className="w-4 h-4" /></Button>}
                         {hasPermission(PERMISSIONS.CHANGE_STATUS) && <Button variant="ghost" size="icon" onClick={() => openModal('status', item)} className="text-slate-400 hover:text-indigo-600"><Settings2 className="w-4 h-4" /></Button>}
                         {hasPermission(PERMISSIONS.ASSIGN) && <Button variant="ghost" size="icon" onClick={() => openModal('assign', item)} className="text-slate-400 hover:text-blue-600"><User className="w-4 h-4" /></Button>}
@@ -661,7 +703,7 @@ export default function ArticleItemsTab() {
 
                   </TableRow>
                 ))
-              ) : (<TableRow><TableCell colSpan={7} className="h-48 text-center text-slate-500">Aucune pièce trouvée avec ces filtres.</TableCell></TableRow>)}
+              ) : (<TableRow><TableCell colSpan={8} className="h-48 text-center text-slate-500">Aucune pièce trouvée avec ces filtres.</TableCell></TableRow>)}
             </TableBody>
           </Table>
         </div>
@@ -691,6 +733,62 @@ export default function ArticleItemsTab() {
       </div>
 
       {/* 🔹 MODALS 🔹 */}
+
+      {/* 🔥 مودال التعديل (Edit Modal) 🔥 */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden bg-white rounded-2xl">
+          <DialogHeader className="px-6 py-5 border-b bg-slate-50/50">
+            <DialogTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              <Edit className="w-5 h-5 text-indigo-600" /> Modifier les informations
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 mt-1">
+              Mettez à jour les détails techniques et financiers. QR: <strong className="font-mono text-indigo-700">{selectedItem?.qr_code_reference}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateItem} className="px-6 py-5 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">Nom Facture</label>
+              <Input value={editForm.nom_facture} onChange={e => setEditForm({...editForm, nom_facture: e.target.value})} placeholder="Nom du fournisseur ou de la facture" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Marque</label>
+                <Input value={editForm.marque} onChange={e => setEditForm({...editForm, marque: e.target.value})} placeholder="Ex: HP, Dell..." />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Modèle</label>
+                <Input value={editForm.modele} onChange={e => setEditForm({...editForm, modele: e.target.value})} placeholder="Ex: ProBook..." />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">Numéro de Série (S/N)</label>
+              <Input value={editForm.numero_serie_fabricant} onChange={e => setEditForm({...editForm, numero_serie_fabricant: e.target.value})} placeholder="S/N du fabricant" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">N° Facture</label>
+                <Input value={editForm.numero_facture} onChange={e => setEditForm({...editForm, numero_facture: e.target.value})} placeholder="N° de la facture" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Date Facture</label>
+                <Input type="date" value={editForm.date_facture} onChange={e => setEditForm({...editForm, date_facture: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">Valeur Unitaire (DA) <span className="text-red-500">*</span></label>
+              <Input type="number" min="0" step="0.01" value={editForm.valeur_unitaire} onChange={e => setEditForm({...editForm, valeur_unitaire: parseFloat(e.target.value)})} required />
+            </div>
+            <DialogFooter className="pt-4 border-t mt-6 bg-transparent px-0">
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={actionLoading} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]">
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* باقي الـ Modals القديمة */}
       <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-white rounded-2xl">
           <DialogHeader className="px-6 py-5 border-b bg-slate-50/50">
@@ -803,7 +901,7 @@ export default function ArticleItemsTab() {
                   <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
                     <div className="flex justify-between font-bold text-slate-700 mb-1"><span className="uppercase text-purple-600 text-xs">{hist.action.replace(/_/g, ' ')}</span><span className="text-xs text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3"/> {new Date(hist.created_at).toLocaleDateString()}</span></div>
                     <div className="text-xs text-slate-500">Par: {hist.user_name || 'Système'}</div>
-                    {(hist.old_value || hist.new_value) && <div className="text-xs font-mono mt-1 text-slate-600"><span className="line-through">{hist.old_value}</span> ➔ <span className="font-bold">{hist.new_value}</span></div>}
+                    {(hist.old_value || hist.new_value) && <div className="text-xs font-mono mt-1 text-slate-600 break-all"><span className="line-through">{hist.old_value}</span> ➔ <span className="font-bold text-indigo-600">{hist.new_value}</span></div>}
                     {hist.remarque && <div className="text-xs italic mt-1 text-slate-500">"{hist.remarque}"</div>}
                   </div>
                 ))}

@@ -25,18 +25,15 @@ import { ArticleFormModal } from "@/components/articles/ArticleFormModal";
 // 🔐 إدارة الصلاحيات (PERMISSIONS)
 // ==========================================
 const PERMISSIONS = {
-  MANAGE_ARTICLES: "gerer_articles", // في الباك-اند هذه الصلاحية تجمع (العرض، الإضافة، الاستيراد، التصدير)
+  MANAGE_ARTICLES: "gerer_articles", 
 };
 
-// Format DZD
 const formatMoney = (amount: number) => {
   return new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(amount);
 };
 
 export default function ArticlesTab() {
   const router = useRouter();
-  
-  // 🔹 جلب دالة التحقق من الصلاحيات من الـ Store 🔹
   const hasPermission = useAuthStore((state) => state.hasPermission);
   
   // Data States
@@ -47,6 +44,7 @@ export default function ArticlesTab() {
   // Pagination & Filters States
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [subCategoryFilter, setSubCategoryFilter] = useState("all"); // 👈 فلتر الـ Sous-catégorie
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -60,10 +58,9 @@ export default function ArticlesTab() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   
-  // 🔹 State جديد لتحديد نوع الاستيراد (كتالوج أو قطع تفصيلية)
   const [importType, setImportType] = useState<'catalog' | 'items'>('catalog');
 
-  // 1. Fetch Categories for Filter
+  // 1. Fetch Categories for Filter (avec sous-catégories)
   useEffect(() => {
     if (!hasPermission(PERMISSIONS.MANAGE_ARTICLES)) return;
     api.get("/categories?per_page=100").then(res => setCategories(res.data.data?.data || res.data.data || []));
@@ -80,6 +77,7 @@ export default function ArticlesTab() {
       setLoading(true);
       const params: any = { search, page, per_page: 12 };
       if (categoryFilter !== "all") params.category_id = categoryFilter;
+      if (subCategoryFilter !== "all") params.sous_categorie_id = subCategoryFilter; // 👈 نبعثو للباكاند
 
       const res = await api.get("/articles", { params });
       
@@ -98,9 +96,8 @@ export default function ArticlesTab() {
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter, page, hasPermission]);
+  }, [search, categoryFilter, subCategoryFilter, page, hasPermission]); // 👈 ضفنا subCategoryFilter للـ dependencies
 
-  // Trigger fetch with Debounce for search
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchArticles();
@@ -109,11 +106,9 @@ export default function ArticlesTab() {
     return () => clearTimeout(delayDebounceFn);
   }, [fetchArticles]);
 
-  // Checkbox Handlers
   const handleSelectAll = (checked: boolean) => setSelectedIds(checked ? data.map(item => item.id) : []);
   const handleSelectItem = (id: number, checked: boolean) => setSelectedIds(prev => checked ? [...prev, id] : prev.filter(item => item !== id));
 
-  // Export Logic
   const handleExport = async (type: 'normal' | 'detailed') => {
     try {
       const params: any = { type };
@@ -121,6 +116,7 @@ export default function ArticlesTab() {
       else {
         if (search) params.search = search;
         if (categoryFilter !== "all") params.category_id = categoryFilter;
+        if (subCategoryFilter !== "all") params.sous_categorie_id = subCategoryFilter; // 👈 نبعثوها في الـ Export
       }
 
       const res = await api.get("/articles/export", { params, responseType: 'blob' });
@@ -137,10 +133,8 @@ export default function ArticlesTab() {
     }
   };
 
-  // 🔹 Download Template Logic (Dynamique) 🔹
   const handleDownloadTemplate = async () => {
     try {
-      // نختاروا مسار الـ Template واسم الملف على حساب الـ importType
       const endpoint = importType === 'catalog' ? '/articles/template' : '/article-items/template';
       const filename = importType === 'catalog' ? 'modele_import_articles.xlsx' : 'modele_import_pieces_qr.xlsx';
 
@@ -157,7 +151,6 @@ export default function ArticlesTab() {
     }
   };
 
-  // 🔹 Import Submit Logic (Dynamique) 🔹
   const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importFile) return toast.error("Veuillez sélectionner un fichier.");
@@ -166,7 +159,6 @@ export default function ArticlesTab() {
 
     try {
       setImporting(true);
-      // نختاروا مسار الإرسال على حساب الـ importType
       const endpoint = importType === 'catalog' ? '/articles/import' : '/article-items/import';
       
       const res = await api.post(endpoint, formData, { headers: { "Content-Type": "multipart/form-data" }});
@@ -182,7 +174,6 @@ export default function ArticlesTab() {
     }
   };
 
-  // 🛡️ حماية المحتوى كامل
   if (!hasPermission(PERMISSIONS.MANAGE_ARTICLES)) {
     return <div className="p-8 text-center text-slate-500">🚫 Accès refusé. Vous n'avez pas la permission de voir le catalogue.</div>;
   }
@@ -221,7 +212,6 @@ export default function ArticlesTab() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* 🔹 زر الاستيراد أصبح Dropdown ليسمح بخيارين 🔹 */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
@@ -252,20 +242,19 @@ export default function ArticlesTab() {
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Rechercher par nom de l'article..." 
+              placeholder="Rechercher (Nom ou N° Facture)..." 
               value={search} 
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }} 
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
               className="pl-9 bg-white border-slate-200 focus-visible:ring-indigo-500/30 rounded-lg shadow-sm" 
             />
           </div>
+          
           <div className="w-full sm:w-64">
             <Select 
               value={categoryFilter} 
               onValueChange={(val) => {
                 setCategoryFilter(val ?? "all");
+                setSubCategoryFilter("all"); // 👈 Reset Sous-catégorie كي يبدل הـ Catégorie
                 setPage(1);
               }}
             >
@@ -278,6 +267,26 @@ export default function ArticlesTab() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* 👈 فلتر הـ Sous-catégorie (يظهر غير إذا ختار Category) */}
+          {categoryFilter !== "all" && (
+            <div className="w-full sm:w-64">
+              <Select 
+                value={subCategoryFilter} 
+                onValueChange={(val) => { setSubCategoryFilter(val ?? "all"); setPage(1); }}
+              >
+                <SelectTrigger className="bg-white border-slate-200 focus:ring-indigo-500/30 rounded-lg text-slate-600 shadow-sm">
+                  <SelectValue placeholder="Sous-catégories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les sous-catégories</SelectItem>
+                  {categories.find(c => c.id.toString() === categoryFilter)?.sub_categories?.map((sub: any) => (
+                    <SelectItem key={sub.id} value={sub.id.toString()}>{sub.nom}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -289,6 +298,7 @@ export default function ArticlesTab() {
               <TableHead className="w-12 pl-4"><Checkbox checked={data.length > 0 && selectedIds.length === data.length} onCheckedChange={handleSelectAll} className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600" /></TableHead>
               <TableHead className="font-semibold text-slate-600">Désignation (Nom de l'Article)</TableHead>
               <TableHead className="font-semibold text-slate-600">Catégorie</TableHead>
+              <TableHead className="font-semibold text-slate-600">Sous-Catégorie</TableHead> {/* 👈 زدنا هادي */}
               <TableHead className="text-center font-semibold text-slate-600">Quantité Globale</TableHead>
               <TableHead className="text-right font-semibold text-slate-600">Valeur Globale</TableHead>
               <TableHead className="text-right font-semibold text-slate-600 pr-6">Action</TableHead>
@@ -296,13 +306,17 @@ export default function ArticlesTab() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /><p className="mt-2 text-sm text-slate-500">Chargement des données...</p></TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="h-64 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /><p className="mt-2 text-sm text-slate-500">Chargement des données...</p></TableCell></TableRow>
             ) : data.length > 0 ? (
               data.map((art) => (
                 <TableRow key={art.id} className={`group ${selectedIds.includes(art.id) ? "bg-indigo-50/50" : "hover:bg-slate-50/50"}`}>
                   <TableCell className="pl-4"><Checkbox checked={selectedIds.includes(art.id)} onCheckedChange={(checked) => handleSelectItem(art.id, checked as boolean)} className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600" /></TableCell>
                   <TableCell className="font-medium text-slate-900">{art.nom}</TableCell>
                   <TableCell><span className="text-sm text-slate-600">{art.category_nom || "—"}</span></TableCell>
+                  
+                  {/* 👈 نافيشيو הـ Sous-catégorie */}
+                  <TableCell><span className="text-sm text-slate-500">{art.sub_category_nom || "—"}</span></TableCell>
+                  
                   <TableCell className="text-center">
                     <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold">{art.quantite_globale}</span>
                   </TableCell>
@@ -314,7 +328,7 @@ export default function ArticlesTab() {
                   </TableCell>
                 </TableRow>
               ))
-            ) : (<TableRow><TableCell colSpan={6} className="h-48 text-center text-slate-500">Aucun enregistrement trouvé.</TableCell></TableRow>)}
+            ) : (<TableRow><TableCell colSpan={7} className="h-48 text-center text-slate-500">Aucun enregistrement trouvé.</TableCell></TableRow>)}
           </TableBody>
         </Table>
 
@@ -333,16 +347,23 @@ export default function ArticlesTab() {
       {/* MODALS */}
       {hasPermission(PERMISSIONS.MANAGE_ARTICLES) && (
         <>
-          <ArticleFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchArticles} />
+          {/* 👈 هنا بعثنا הـ categories كاملين كـ prop للـ Modal باش يقدر يخدم بيهم */}
+          <ArticleFormModal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            onSuccess={fetchArticles} 
+            categories={categories} 
+          />
 
+          {/* ... باقي الـ Import Modal خليتو كيما راهو */}
           <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+            {/* الكود القديم تاع الـ Import */}
             <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-white shadow-2xl border-0 rounded-2xl">
               <DialogHeader className="px-6 py-5 border-b bg-slate-50/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><Upload className="w-5 h-5" /></div>
                     <div>
-                      {/* 🔹 العنوان والوصف يتغيرو على حساب نوع الاستيراد */}
                       <DialogTitle className="text-xl font-semibold text-slate-800">
                         {importType === 'catalog' ? 'Importation du Catalogue' : 'Importation des Pièces (QR)'}
                       </DialogTitle>

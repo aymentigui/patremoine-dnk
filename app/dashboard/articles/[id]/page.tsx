@@ -20,10 +20,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 // Icons
-import { Loader2, ArrowLeft, QrCode, MapPin, User, Settings2, ArrowRightLeft, Box, AlertTriangle, Tag, History, Clock, Search, Download, Printer, Check } from "lucide-react";
+import { Loader2, ArrowLeft, QrCode, MapPin, User, Settings2, ArrowRightLeft, Box, AlertTriangle, Tag, History, Clock, Search, Download, Printer, Check, Edit } from "lucide-react";
 
 // ==========================================
-// 🔐 إدارة الصلاحيات (PERMISSIONS) - مطابقة للباك اند
+// 🔐 إدارة الصلاحيات (PERMISSIONS)
 // ==========================================
 const PERMISSIONS = {
   VIEW: "voir_article_items",
@@ -31,7 +31,8 @@ const PERMISSIONS = {
   ASSIGN: "affecter_employe_article_items",
   TRANSFER: "ajouter_transfers", 
   HISTORY: "voir_article_items",
-  EXPORT: "exporter_article_items"
+  EXPORT: "exporter_article_items",
+  EDIT: "gerer_articles" // 👈 زدنا هادي لأن التعديل محمي بهاد الصلاحية في الباكاند
 };
 
 const formatMoney = (amount: number) => new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(amount);
@@ -59,7 +60,6 @@ export default function ArticleDetailsPage() {
   const router = useRouter();
   const articleId = params.id;
   
-  // 🔹 جلب دالة التحقق من الصلاحيات من الـ Store 🔹
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
   // --- States ---
@@ -68,11 +68,9 @@ export default function ArticleDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Selection & Print States
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [labelType, setLabelType] = useState<"qr" | "barcode">("qr");
 
-  // Lists
   const [employees, setEmployees] = useState<any[]>([]);
   const [treeData, setTreeData] = useState<any[]>([]);
 
@@ -82,6 +80,7 @@ export default function ArticleDetailsPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // 👈 حالة المودال نتاع التعديل
 
   // Form states
   const [newStatus, setNewStatus] = useState("");
@@ -89,23 +88,29 @@ export default function ArticleDetailsPage() {
   const [remarque, setRemarque] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Transfer Modal States
+  // 🔥 State نتاع التعديل (Edit) 🔥
+  const [editForm, setEditForm] = useState({
+    marque: "",
+    modele: "",
+    numero_serie_fabricant: "",
+    numero_facture: "",
+    date_facture: "",
+    valeur_unitaire: 0,
+  });
+
   const [transferParcId, setTransferParcId] = useState<string>("all");
   const [newEmplacementId, setNewEmplacementId] = useState<string>("");
   const [searchParc, setSearchParc] = useState("");
   const [searchEmplacement, setSearchEmplacement] = useState("");
 
-  // History State
   const [itemHistory, setItemHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
 
-  // --- Data Fetching ---
   const refreshArticleDetails = useCallback(async () => {
-    if (!hasPermission(PERMISSIONS.VIEW)) return; // 🔹 حماية
+    if (!hasPermission(PERMISSIONS.VIEW)) return; 
     try {
       const res = await api.get(`/articles/${articleId}`);
-      
       setArticle(res.data?.data);
       setItems(res.data?.data?.items || []);
     } catch (error) {
@@ -116,7 +121,6 @@ export default function ArticleDetailsPage() {
   useEffect(() => {
     let isMounted = true;
     const loadAllData = async () => {
-      // 🔹 لا تقم بتحميل البيانات إذا لم يكن لديه الصلاحية
       if (!hasPermission(PERMISSIONS.VIEW)) {
         if (isMounted) setLoading(false);
         return;
@@ -154,7 +158,7 @@ export default function ArticleDetailsPage() {
   }, [articleId, router, hasPermission]);
 
   const fetchItemHistory = async (itemId: number) => {
-    if (!hasPermission(PERMISSIONS.HISTORY)) return; // 🔹 حماية
+    if (!hasPermission(PERMISSIONS.HISTORY)) return; 
     setHistoryLoading(true);
     setHistorySearch("");
     try {
@@ -233,7 +237,23 @@ export default function ArticleDetailsPage() {
     }
   };
 
-  const openModal = (type: 'status' | 'assign' | 'transfer' | 'history', item: any) => {
+  // 🔥 دالة التعديل (Update Item) 🔥
+  const handleUpdateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setActionLoading(true);
+      await api.put(`/article-items/${selectedItem.id}`, editForm);
+      toast.success("Article mis à jour avec succès !");
+      setIsEditModalOpen(false);
+      refreshArticleDetails();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur de mise à jour.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openModal = (type: 'status' | 'assign' | 'transfer' | 'history' | 'edit', item: any) => {
     setSelectedItem(item);
     setRemarque("");
     if (type === 'status') { setNewStatus(item.status); setIsStatusModalOpen(true); }
@@ -244,6 +264,19 @@ export default function ArticleDetailsPage() {
       setIsTransferModalOpen(true); 
     }
     if (type === 'history') { setIsHistoryModalOpen(true); fetchItemHistory(item.id); }
+    
+    // 🔥 فتح مودال التعديل وتعبئة البيانات القديمة 🔥
+    if (type === 'edit') {
+      setEditForm({
+        marque: item.marque || "",
+        modele: item.modele || "",
+        numero_serie_fabricant: item.numero_serie_fabricant || "",
+        numero_facture: item.numero_facture || "",
+        date_facture: item.date_facture ? item.date_facture.split('T')[0] : "", // الفورماط نتاع input date
+        valeur_unitaire: item.valeur_unitaire || 0,
+      });
+      setIsEditModalOpen(true);
+    }
   };
 
   const filteredItems = items.filter(item => 
@@ -259,7 +292,6 @@ export default function ArticleDetailsPage() {
     h.remarque?.toLowerCase().includes(historySearch.toLowerCase())
   );
 
-  // --- Selection & Bulk Actions Logic ---
   const handleSelectAll = () => {
     if (selectedIds.length === filteredItems.length && filteredItems.length > 0) {
       setSelectedIds([]);
@@ -312,76 +344,26 @@ export default function ArticleDetailsPage() {
         <head>
           <title>Impression Étiquettes</title>
           <style>
-            body {
-              margin: 0;
-              padding: 10px;
-              font-family: Arial, sans-serif;
-              background: white;
-            }
-            .print-container {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 15px;
-              justify-content: flex-start;
-            }
-            .etiquette {
-              border: 1px dashed #ccc;
-              width: 220px;
-              height: 140px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              text-align: center;
-              page-break-inside: avoid;
-              padding: 10px;
-              box-sizing: border-box;
-            }
-            .etiquette-title {
-              font-size: 11px;
-              font-weight: bold;
-              margin-bottom: 8px;
-              text-transform: uppercase;
-              color: #000;
-            }
-            .etiquette-text {
-              font-size: 12px;
-              margin-top: 5px;
-              font-family: monospace;
-              font-weight: bold;
-              color: #000;
-            }
-            .etiquette-sub {
-              font-size: 9px;
-              margin-top: 3px;
-              color: #444;
-            }
-            svg {
-              max-width: 100%;
-              height: auto;
-            }
+            body { margin: 0; padding: 10px; font-family: Arial, sans-serif; background: white; }
+            .print-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
+            .etiquette { border: 1px dashed #ccc; width: 220px; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; page-break-inside: avoid; padding: 10px; box-sizing: border-box; }
+            .etiquette-title { font-size: 11px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; color: #000; }
+            .etiquette-text { font-size: 12px; margin-top: 5px; font-family: monospace; font-weight: bold; color: #000; }
+            .etiquette-sub { font-size: 9px; margin-top: 3px; color: #444; }
+            svg { max-width: 100%; height: auto; }
           </style>
         </head>
         <body>
-          <div class="print-container">
-            ${printContent}
-          </div>
-          <script>
-            window.onload = () => {
-              window.print();
-            }
-          </script>
+          <div class="print-container">${printContent}</div>
+          <script>window.onload = () => { window.print(); }</script>
         </body>
       </html>
     `);
     iframe.contentWindow?.document.close();
     
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 2000);
+    setTimeout(() => { document.body.removeChild(iframe); }, 2000);
   };
 
-  // 🛡️ حماية الصفحة كاملة
   if (!hasPermission(PERMISSIONS.VIEW)) {
     return <div className="p-8 text-center text-slate-500">🚫 Vous n'avez pas l'autorisation de voir cette page.</div>;
   }
@@ -436,7 +418,6 @@ export default function ArticleDetailsPage() {
             <span className="text-sm font-semibold text-indigo-800">{selectedIds.length} sélectionné(s)</span>
             <div className="h-6 w-px bg-indigo-200 mx-1 hidden sm:block"></div>
             
-            {/* 🔹 حماية زر التصدير */}
             {hasPermission(PERMISSIONS.EXPORT) && (
               <Button size="sm" onClick={handleExportExcel} className="bg-green-600 text-white hover:bg-green-700 shadow-sm">
                 <Download className="w-4 h-4 mr-2" /> Exporter Excel
@@ -556,6 +537,14 @@ export default function ArticleDetailsPage() {
                   {/* 🔹 الأزرار الفردية محمية بالصلاحيات 🔹 */}
                   <TableCell className="text-right pr-6 align-middle">
                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      
+                      {/* 🔥 زر التعديل (Edit) الجديد 🔥 */}
+                      {hasPermission(PERMISSIONS.EDIT) && (
+                        <Button variant="ghost" size="icon" onClick={() => openModal('edit', item)} title="Modifier l'article" className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+
                       {hasPermission(PERMISSIONS.HISTORY) && (
                         <Button variant="ghost" size="icon" onClick={() => openModal('history', item)} title="Voir l'historique" className="text-slate-400 hover:text-purple-600 hover:bg-purple-50">
                           <History className="w-4 h-4" />
@@ -613,6 +602,58 @@ export default function ArticleDetailsPage() {
       </div>
 
       {/* 🔹 MODALS 🔹 */}
+
+      {/* 🔥 مودال التعديل (Edit Modal) 🔥 */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden bg-white rounded-2xl">
+          <DialogHeader className="px-6 py-5 border-b bg-slate-50/50">
+            <DialogTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              <Edit className="w-5 h-5 text-indigo-600" /> Modifier les informations
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 mt-1">
+              Mettez à jour les détails techniques et financiers. QR: <strong className="font-mono text-indigo-700">{selectedItem?.qr_code_reference}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateItem} className="px-6 py-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Marque</label>
+                <Input value={editForm.marque} onChange={e => setEditForm({...editForm, marque: e.target.value})} placeholder="Ex: HP, Dell..." />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Modèle</label>
+                <Input value={editForm.modele} onChange={e => setEditForm({...editForm, modele: e.target.value})} placeholder="Ex: ProBook..." />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">Numéro de Série (S/N)</label>
+              <Input value={editForm.numero_serie_fabricant} onChange={e => setEditForm({...editForm, numero_serie_fabricant: e.target.value})} placeholder="S/N du fabricant" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">N° Facture</label>
+                <Input value={editForm.numero_facture} onChange={e => setEditForm({...editForm, numero_facture: e.target.value})} placeholder="N° de la facture" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Date Facture</label>
+                <Input type="date" value={editForm.date_facture} onChange={e => setEditForm({...editForm, date_facture: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">Valeur Unitaire (DA) <span className="text-red-500">*</span></label>
+              <Input type="number" min="0" step="0.01" value={editForm.valeur_unitaire} onChange={e => setEditForm({...editForm, valeur_unitaire: parseFloat(e.target.value)})} required />
+            </div>
+            <DialogFooter className="pt-4 border-t mt-6 bg-transparent px-0">
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={actionLoading} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]">
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* باقي الـ Modals القديمة... */}
       <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-white rounded-2xl">
           <DialogHeader className="px-6 py-5 border-b bg-slate-50/50">
@@ -771,8 +812,8 @@ export default function ArticleDetailsPage() {
                       </div>
                       <p className="text-xs text-slate-500 mb-2">Par : <span className="font-semibold text-slate-700">{hist.user_name}</span></p>
                       {(hist.old_value || hist.new_value) && (
-                        <div className="bg-slate-50 p-2 rounded text-xs text-slate-600 mt-2 font-mono">
-                          {hist.old_value && <span className="line-through text-slate-400 mr-2">{hist.old_value}</span>}
+                        <div className="bg-slate-50 p-2 rounded text-xs text-slate-600 mt-2 font-mono break-all">
+                          {hist.old_value && <span className="line-through text-slate-400 mr-2 block mb-1">{hist.old_value}</span>}
                           {hist.new_value && <span className="text-indigo-600 font-bold">➔ {hist.new_value}</span>}
                         </div>
                       )}
